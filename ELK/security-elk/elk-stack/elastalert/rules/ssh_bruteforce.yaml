@@ -1,0 +1,29 @@
+name: SSH Bruteforce Suspected
+type: frequency
+index: filebeat-*
+num_events: 10
+timeframe:
+  minutes: 5
+
+filter:
+- query:
+    query_string:
+      query: "(system.auth.ssh.event:Failed OR message:*Failed*password*) AND (program:sshd OR process.name:sshd)"
+
+query_key: source.ip
+realert:
+  minutes: 30
+
+alert:
+  - post
+http_post_url: "http://backend:5000/api/alerts/webhook"
+http_post_json: true
+http_post_all_values: true
+http_post_payload:
+  title: "SSH bruteforce suspected"
+  description: "10 failed logins within 5 minutes"
+  severity: "high"
+  category: "authentication"
+http_post_static_payload:
+  source: "automated"
+

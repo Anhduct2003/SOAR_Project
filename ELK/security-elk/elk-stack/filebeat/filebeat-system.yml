@@ -1,0 +1,62 @@
+filebeat.inputs:
+- type: log
+  enabled: true
+  paths:
+    - /var/log/syslog
+  fields:
+    log_type: system
+  fields_under_root: true
+
+- type: log
+  enabled: true
+  paths:
+    - /var/log/auth.log
+  fields:
+    log_type: authentication
+  fields_under_root: true
+
+- type: container
+  enabled: true
+  paths:
+    - '/var/lib/docker/containers/*/*.log'
+  processors:
+    - add_docker_metadata:
+        host: "unix:///var/run/docker.sock"
+
+# Enable filebeat system module
+filebeat.modules:
+- module: system
+  syslog:
+    enabled: true
+  auth:
+    enabled: true
+
+processors:
+  - add_host_metadata:
+      when.not.contains.tags: forwarded
+  - add_docker_metadata: ~
+
+# Output directly to Elasticsearch instead of Logstash
+output.elasticsearch:
+  hosts: ["elasticsearch:9200"]
+  indices:
+    - index: "filebeat-system-%{+yyyy.MM.dd}"
+      when.equals:
+        log_type: "system"
+    - index: "filebeat-auth-%{+yyyy.MM.dd}"
+      when.equals:
+        log_type: "authentication"
+    - index: "filebeat-docker-%{+yyyy.MM.dd}"
+      when.contains:
+        docker.container.name: ""
+
+setup.ilm.enabled: false
+setup.template.enabled: true
+
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat
+  keepfiles: 7
+  permissions: 0644

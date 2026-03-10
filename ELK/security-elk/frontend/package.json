@@ -1,0 +1,79 @@
+{
+  "name": "security-incident-response-frontend",
+  "version": "1.0.0",
+  "description": "Frontend Dashboard cho hệ thống Security Incident Response",
+  "private": true,
+  "dependencies": {
+    "@headlessui/react": "^1.7.13",
+    "@heroicons/react": "^2.0.16",
+    "@testing-library/jest-dom": "^5.16.4",
+    "@testing-library/react": "^13.3.0",
+    "@testing-library/user-event": "^13.5.0",
+    "axios": "^1.3.4",
+    "clsx": "^1.2.1",
+    "date-fns": "^2.29.3",
+    "framer-motion": "^10.0.1",
+    "leaflet": "^1.9.3",
+    "lodash": "^4.17.21",
+    "moment": "^2.29.4",
+    "react": "^18.2.0",
+    "react-beautiful-dnd": "^13.1.1",
+    "react-datepicker": "^4.11.2",
+    "react-dom": "^18.2.0",
+    "react-dropzone": "^14.2.3",
+    "react-hook-form": "^7.43.5",
+    "react-hot-toast": "^2.4.0",
+    "react-icons": "^4.8.0",
+    "react-leaflet": "^4.2.0",
+    "react-modal": "^3.16.1",
+    "react-query": "^3.39.3",
+    "react-router-dom": "^6.8.1",
+    "react-scripts": "5.0.1",
+    "react-select": "^5.7.2",
+    "react-table": "^7.8.0",
+    "react-tooltip": "^5.18.1",
+    "react-virtualized-auto-sizer": "^1.0.7",
+    "react-window": "^1.8.8",
+    "recharts": "^2.5.0",
+    "socket.io-client": "^4.6.1",
+    "styled-components": "^5.3.9",
+    "tailwindcss": "^3.2.7"
+  },
+  "devDependencies": {
+    "@types/leaflet": "^1.9.3",
+    "@types/lodash": "^4.14.191",
+    "@types/react": "^18.0.28",
+    "@types/react-dom": "^18.0.11",
+    "autoprefixer": "^10.4.14",
+    "postcss": "^8.4.21",
+    "typescript": "^4.9.5",
+    "web-vitals": "^2.1.4"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "lint": "eslint src --ext .js,.jsx,.ts,.tsx",
+    "lint:fix": "eslint src --ext .js,.jsx,.ts,.tsx --fix"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "proxy": "http://localhost:5001"
+}

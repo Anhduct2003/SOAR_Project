@@ -1,0 +1,26 @@
+name: Suspicious Sudo Activity
+type: any
+index: filebeat-*
+
+filter:
+- query:
+    query_string:
+      query: "system.auth.sudo.error:* OR message:*sudo*session*opened*"
+
+query_key: [host.name, user.name]
+realert:
+  minutes: 60
+
+alert:
+  - post
+http_post_url: "http://backend:5000/api/alerts/webhook"
+http_post_json: true
+http_post_all_values: true
+http_post_payload:
+  title: "Suspicious sudo activity"
+  description: "sudo session or error detected"
+  severity: "high"
+  category: "privilege_misuse"
+http_post_static_payload:
+  source: "automated"
+

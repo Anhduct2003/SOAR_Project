@@ -1,0 +1,28 @@
+auditbeat.modules:
+# Only using file integrity module which doesn't require audit subsystem
+- module: file_integrity
+  paths:
+  - /etc/passwd
+  - /etc/group
+  - /etc/shadow
+  - /etc/hosts
+  - /etc/resolv.conf
+  scan_at_start: true
+  scan_rate_per_sec: 10
+  max_file_size: 10 MiB
+  hash_types: [sha1]
+
+output.elasticsearch:
+  hosts: ["elasticsearch:9200"]
+
+# Use default index name
+# setup.ilm.enabled: auto
+setup.template.settings:
+  index.number_of_shards: 1
+  
+# Add template name and pattern to match the index
+setup.template.name: "auditbeat"
+setup.template.pattern: "auditbeat-*"
+
+logging.level: debug
+logging.to_stderr: true

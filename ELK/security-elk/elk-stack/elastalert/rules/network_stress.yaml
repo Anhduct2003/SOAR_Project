@@ -1,0 +1,32 @@
+name: Network Traffic Surge
+type: spike
+index: packetbeat-*
+timeframe:
+  minutes: 5
+spike_height: 3
+spike_type: up
+cardinality_field: source.ip
+
+filter:
+- query:
+    query_string:
+      query: "network.transport:tcp OR network.transport:udp"
+
+query_key: destination.ip
+realert:
+  minutes: 30
+
+alert:
+  - post
+http_post_url: "http://backend:5000/api/alerts/webhook"
+http_post_json: true
+http_post_all_values: true
+http_post_payload:
+  title: "Tăng đột biến lưu lượng mạng"
+  description: "Phát hiện surge traffic vượt 3x trong 5 phút"
+  severity: "high"
+  category: "ddos"
+  ipAddresses: []
+http_post_static_payload:
+  source: "automated"
+

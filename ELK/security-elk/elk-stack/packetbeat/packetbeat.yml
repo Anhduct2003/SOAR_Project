@@ -1,0 +1,48 @@
+packetbeat.interfaces.device: any
+
+packetbeat.protocols:
+- type: http
+  ports: [80, 8080, 8000, 3000, 5000, 5001, 8002, 9200, 5601]
+  send_request: true
+  send_response: true
+  send_headers: true
+  send_all_headers: true
+  real_ip_header: "X-Forwarded-For"
+
+- type: https
+  ports: [443, 8443, 9443]
+  send_request: true
+  send_response: true
+  send_headers: true
+  send_all_headers: true
+  real_ip_header: "X-Forwarded-For"
+
+- type: mysql
+  ports: [3306]
+
+- type: pgsql
+  ports: [5432]
+
+- type: redis
+  ports: [6379]
+
+- type: mongodb
+  ports: [27017]
+
+processors:
+  - add_host_metadata:
+      when.not.contains.tags: forwarded
+  - add_cloud_metadata: ~
+
+output.elasticsearch:
+  hosts: ["http://localhost:9200"]
+  indices:
+    - index: "packetbeat-%{[agent.version]}-%{+yyyy.MM.dd}"
+
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/packetbeat
+  name: packetbeat
+  keepfiles: 7
+  permissions: 0644

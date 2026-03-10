@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Incident Response API Documentation</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .nav {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .nav a {
+            color: #667eea;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            transition: background 0.3s;
+        }
+        .nav a:hover {
+            background: #667eea;
+            color: white;
+        }
+        .section {
+            background: white;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .section-header {
+            background: #667eea;
+            color: white;
+            padding: 20px;
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+        .section-content {
+            padding: 30px;
+        }
+        .endpoint {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .method {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            color: white;
+            margin-right: 10px;
+            font-size: 0.9em;
+        }
+        .method.get { background: #28a745; }
+        .method.post { background: #007bff; }
+        .method.put { background: #ffc107; color: #333; }
+        .method.delete { background: #dc3545; }
+        .code {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            margin: 15px 0;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: #e3f2fd;
+            color: #1565c0;
+            border-radius: 12px;
+            font-size: 0.8em;
+            margin: 2px;
+        }
+        .badge.admin { background: #ffebee; color: #c62828; }
+        .badge.auth { background: #e8f5e8; color: #2e7d32; }
+        .response-example {
+            background: #f1f3f4;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .test-credentials {
+            background: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #ffeaa7;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🛡️ Security Incident Response API</h1>
+        <p>Comprehensive API Documentation for Security Incident Management System</p>
+        <p><strong>Base URL:</strong> <code>http://localhost:5001</code></p>
+    </div>
+
+    <div class="nav">
+        <ul>
+            <li><a href="#overview">📋 Overview</a></li>
+            <li><a href="#auth">🔐 Authentication</a></li>
+            <li><a href="#users">👥 Users</a></li>
+            <li><a href="#incidents">🚨 Incidents</a></li>
+            <li><a href="#dashboard">📊 Dashboard</a></li>
+            <li><a href="#alerts">🔔 Alerts</a></li>
+            <li><a href="#elasticsearch">🔍 Elasticsearch</a></li>
+            <li><a href="#system">🏥 System</a></li>
+        </ul>
+    </div>
+
+    <div class="test-credentials">
+        <strong>🧪 Test Credentials:</strong><br>
+        Email: <code>admin@security.local</code><br>
+        Password: <code>admin123</code>
+    </div>
+
+    <div class="section" id="overview">
+        <div class="section-header">📋 API Overview</div>
+        <div class="section-content">
+            <h3>Authentication</h3>
+            <p>Most endpoints require JWT authentication. Include the token in the Authorization header:</p>
+            <div class="code">Authorization: Bearer &lt;your-jwt-token&gt;</div>
+            
+            <h3>User Roles</h3>
+            <p>
+                <span class="badge admin">admin</span> Full system access<br>
+                <span class="badge">analyst</span> Manage incidents and analytics<br>
+                <span class="badge">viewer</span> Read-only access
+            </p>
+
+            <h3>Response Format</h3>
+            <p>All API responses follow this format:</p>
+            <div class="code">{
+  "success": true|false,
+  "data": { ... },
+  "message": "Success/Error message",
+  "error": "Detailed error (if any)"
+}</div>
+        </div>
+    </div>
+
+    <div class="section" id="auth">
+        <div class="section-header">🔐 Authentication APIs</div>
+        <div class="section-content">
+            
+            <div class="endpoint">
+                <h4><span class="method post">POST</span>/api/auth/login</h4>
+                <p>Đăng nhập và nhận JWT token</p>
+                <div class="code">{
+  "email": "admin@security.local",
+  "password": "admin123"
+}</div>
+                <div class="response-example">
+                    <strong>Response (200):</strong>
+                    <div class="code">{
+  "success": true,
+  "token": "eyJhbGciOiJIUzI1NiIs...",
+  "user": {
+    "id": "68b927048a05867f42fa3350",
+    "username": "admin",
+    "email": "admin@security.local",
+    "role": "admin"
+  }
+}</div>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <h4><span class="method post">POST</span>/api/auth/register</h4>
+                <p>Đăng ký user mới</p>
+                <div class="code">{
+  "username": "analyst01",
+  "email": "analyst@company.com",
+  "password": "securepass123",
+  "firstName": "John",
+  "lastName": "Doe",
+  "department": "IT Security",
+  "role": "analyst"
+}</div>
+            </div>
+
+            <div class="endpoint">
+                <h4><span class="method get">GET</span>/api/auth/me <span class="badge auth">Protected</span></h4>
+                <p>Lấy thông tin user hiện tại</p>
+            </div>
+
+            <div class="endpoint">
+                <h4><span class="method put">PUT</span>/api/auth/me <span class="badge auth">Protected</span></h4>
+                <p>Cập nhật thông tin user</p>
+            </div>
+
+            <div class="endpoint">
+                <h4><span class="method put">PUT</span>/api/auth/change-password <span class="badge auth">Protected</span></h4>
+                <p>Đổi mật khẩu</p>
+                <div class="code">{
+  "currentPassword": "oldpass",
+  "newPassword": "newpass123"
+}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section" id="users">
+        <div class="section-header">👥 User Management APIs</div>
+        <div class="section-content">
+            
+            <div class="endpoint">
+                <h4><span class="method get">GET</span>/api/auth/users <span class="badge admin">Admin Only</span></h4>
+                <p>Lấy danh sách users với pagination</p>
+                <p><strong>Query Parameters:</strong></p>
+                <ul>
+                    <li><code>page</code>: Trang hiện tại (default: 1)</li>
+                    <li><code>limit</code>: Items per page (default: 10)</li>
+                    <li><code>role</code>: Filter theo role</li>
+                    <li><code>isActive</code>: Filter theo trạng thái</li>
+                </ul>
+                <div class="response-example">
+                    <strong>Response:</strong>
+                    <div class="code">{
+  "success": true,
+  "count": 5,
+  "pagination": {
+    "page": 1,
+    "limit": 10,
+    "total": 25,
+    "pages": 3
+  },
+  "data": [...]
+}</div>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <h4><span class="method put">PUT</span>/api/auth/users/:id <span class="badge admin">Admin Only</span></h4>
+                <p>Cập nhật user</p>
+                <div class="code">{
+  "role": "analyst",
+  "isActive": true,
+  "department": "IT Security"
+}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section" id="incidents">
+        <div class="section-header">🚨 Incidents APIs</div>
+        <div class="section-content">
+            
+            <div class="endpoint">
+                <h4><span class="method get">GET</span>/api/incidents <span class="badge auth">Protected</span></h4>
+                <p>Lấy danh sách 50 incidents gần nhất</p>
+                <div class="response-example">
+                    <strong>Response:</strong>
+                    <div class="code">{
+  "success": true,
+  "data": [{
+    "id": "60b8d8f8e1b2c1234567890a",
+    "title": "Phát hiện malware trên server",
+    "severity": "high",
+    "status": "investigating",
+    "category": "malware",
+    "affectedSystems": ["web-server-01"],
+    "createdAt": "2025-09-04T08:30:00Z"
+  }]
+}</div>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <h4><span class="method post">POST</span>/api/incidents <span class="badge auth">Protected</span></h4>
+                <p>Tạo incident mới</p>
+                <div class="code">{
+  "title": "Phát hiện malware trên server production",
+  "description": "Phát hiện file độc hại trojan.exe",
+  "severity": "high",
+  "status": "open",
+  "category": "malware",
+  "affectedSystems": ["web-server-01"],
+  "affectedUsers": ["john.doe@company.com"],
+  "ipAddresses": ["192.168.1.100"]
+}</div>
+                
+                <h5>Severity Levels:</h5>
+                <p><span class="badge">low</span> <span class="badge">medium</span> <span class="badge">high</span> <span class="badge">critical</span></p>
+                
+                <h5>Status Values:</h5>
+                <p><span class="badge">open</span> <span class="badge">investigating</span> <span class="badge">contained</span> <span class="badge">resolved</span> <span class="badge">closed</span></p>
+                
+                <h5>Categories:</h5>
+                <p><span class="badge">malware</span> <span class="badge">phishing</span> <span class="badge">data_breach</span> <span class="badge">ddos</span> <span class="badge">insider_threat</span> <span class="badge">network_intrusion</span> <span class="badge">web_application</span> <span class="badge">other</span></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="section" id="dashboard">
+        <div class="section-header">📊 Dashboard APIs</div>
+        <div class="section-content">
+            
+            <div class="endpoint">
+                <h4><span class="method get">GET</span>/api/dashboard/stats <span class="badge auth">Protected</span></h4>
+                <p>Lấy thống kê tổng quan dashboard</p>
+                <div class="response-example">
+                    <strong>Live Response from System:</strong>
+                    <div class="code">{
+  "success": true,
+  "data": {
+    "overview": {
+      "totalIncidents": 13,
+      "openIncidents": 12,
+      "investigatingIncidents": 1,
+      "resolvedIncidents": 0,
+      "avgResolutionTime": 0
+    },
+    "severity": {
+      "low": 2,
+      "medium": 6,
+      "high": 3,
+      "critical": 2
+    },
+    "categories": {
+      "malware": 2,
+      "phishing": 2,
+      "network_intrusion": 2,
+      "authentication": 1
+    },
+    "trends": {
+      "last24Hours": 11,
+      "today": 11
+    }
+  }
+}</div>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <h4><span class="method get">GET</span>/api/dashboard/recent-incidents <span class="badge auth">Protected</span></h4>
+                <p>Lấy incidents gần đây</p>
+                <p><strong>Query Parameters:</strong></p>
+                <ul>
+                    <li><code>limit</code>: Số lượng incidents (default: 10, max: 50)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="section" id="alerts">
+        <div class="section-header">🔔 Alerts APIs</div>
+        <div class="section-content">
+            
+            <div class="endpoint">
+                <h4><span class="method get">GET</span>/api/alerts <span class="badge auth">Protected</span></h4>
+                <p>Lấy danh sách alerts (chưa implement đầy đủ)</p>
+                <div class="response-example">
+                    <strong>Response:</strong>
+                    <div class="code">{
+  "success": true,
+  "data": []
+}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section" id="elasticsearch">
+        <div class="section-header">🔍 Elasticsearch APIs</div>
+        <div class="section-content">
+            
+            <div class="endpoint">
+                <h4><span class="method get">GET</span>/api/elasticsearch/ping <span class="badge auth">Protected</span></h4>
+                <p>Ping Elasticsearch service</p>
+                <div class="response-example">
+                    <strong>Response:</strong>
+                    <div class="code">{
+  "success": true,
+  "message": "ok"
+}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section" id="system">
+        <div class="section-header">🏥 System APIs</div>
+        <div class="section-content">
+            
+            <div class="endpoint">
+                <h4><span class="method get">GET</span>/health</h4>
+                <p>Health check endpoint (không cần authentication)</p>
+                <div class="response-example">
+                    <strong>Response:</strong>
+                    <div class="code">{
+  "status": "OK",
+  "timestamp": "2025-09-04T09:03:15.606Z",
+  "uptime": 3600.5,
+  "environment": "production"
+}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">🧪 Quick Test Examples</div>
+        <div class="section-content">
+            <h4>1. Login và lấy token:</h4>
+            <div class="code">curl -X POST http://localhost:5001/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@security.local","password":"admin123"}'</div>
+
+            <h4>2. Lấy dashboard stats:</h4>
+            <div class="code">curl -X GET http://localhost:5001/api/dashboard/stats \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE"</div>
+
+            <h4>3. Tạo incident mới:</h4>
+            <div class="code">curl -X POST http://localhost:5001/api/incidents \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Test Security Incident",
+    "description": "This is a test incident",
+    "severity": "medium",
+    "category": "other"
+  }'</div>
+
+            <h4>4. Lấy danh sách incidents:</h4>
+            <div class="code">curl -X GET http://localhost:5001/api/incidents \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE"</div>
+        </div>
+    </div>
+
+    <div style="text-align: center; padding: 40px; background: white; border-radius: 8px; margin-top: 20px;">
+        <h3>🚀 API Backend Ready!</h3>
+        <p>Security Incident Response System với <strong>13 incidents</strong> và full authentication</p>
+        <p><strong>Port:</strong> 5001 | <strong>Database:</strong> MongoDB | <strong>Auth:</strong> JWT</p>
+    </div>
+
+</body>
+</html>
