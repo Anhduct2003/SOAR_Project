@@ -1,0 +1,7 @@
+.env
+*.log
+.DS_Store
+Thumbs.db
+ELK/security-elk/backend/logs/
+*.pdf
+*.docx
