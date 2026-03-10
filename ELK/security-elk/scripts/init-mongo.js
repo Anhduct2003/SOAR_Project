@@ -35,7 +35,7 @@ db.audit_logs.createIndex({ "action": 1 });
 const adminUser = {
   username: "admin",
   email: "admin@security.local",
-  password: "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/HS.iK8e", // password: admin123
+  password: "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/HS.iK8e",
   firstName: "System",
   lastName: "Administrator",
   role: "admin",
@@ -49,7 +49,7 @@ const adminUser = {
 const analystUser = {
   username: "analyst",
   email: "analyst@security.local",
-  password: "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/HS.iK8e", // password: analyst123
+  password: "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/HS.iK8e",
   firstName: "Security",
   lastName: "Analyst",
   role: "analyst",
@@ -63,7 +63,7 @@ const analystUser = {
 const viewerUser = {
   username: "viewer",
   email: "viewer@security.local",
-  password: "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/HS.iK8e", // password: viewer123
+  password: "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj4J/HS.iK8e",
   firstName: "Security",
   lastName: "Viewer",
   role: "viewer",

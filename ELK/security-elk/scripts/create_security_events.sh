@@ -7,7 +7,7 @@ echo "Bắt đầu tạo các sự kiện bảo mật mô phỏng..."
 echo "Đăng nhập để lấy token..."
 LOGIN_RESPONSE=$(curl -s -X POST "http://localhost:5001/api/auth/login" \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@security.local", "password":"admin123"}')
+  -d '{"email":"YOUR_ADMIN_EMAIL", "password":"YOUR_ADMIN_PASSWORD"}')
 
 # Trích xuất token từ phản hồi
 TOKEN=$(echo $LOGIN_RESPONSE | grep -o '"token":"[^"]*' | sed 's/"token":"//')

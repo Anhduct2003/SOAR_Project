@@ -13,13 +13,13 @@ ERROR_THRESHOLD="${ERROR_THRESHOLD:-5}"   # số lỗi tối thiểu để trigg
 ERROR_RATE_THRESHOLD="${ERROR_RATE_THRESHOLD:-0.20}" # 20% lỗi -> trigger
 
 # Telegram (đã điền token + chat id bạn cung cấp)
-TELEGRAM_BOT_TOKEN="7206087965:AAHa__By08f7TOYguk0HhHu1cmzPDhOYLAc"
-TELEGRAM_CHAT_ID="7054067416"
+TELEGRAM_BOT_TOKEN="YOUR_TELEGRAM_BOT_TOKEN"
+TELEGRAM_CHAT_ID="YOUR_TELEGRAM_CHAT_ID"
 
 # SMTP (Gmail example using App Password)
-SMTP_USER="tuyenduy2211@gmail.com"
-SMTP_PASS="hiic mced tvao dtnp"   # nếu dùng Gmail: nên là App Password (16 ký tự)
-MAIL_TO="tuyenduy2003@gmail.com"
+SMTP_USER="YOUR_EMAIL@gmail.com"
+SMTP_PASS="YOUR_APP_PASSWORD"   # nếu dùng Gmail: nên là App Password (16 ký tự)
+MAIL_TO="RECEIVER_EMAIL@gmail.com"
 MAIL_FROM="${SMTP_USER}"
 
 # Paths

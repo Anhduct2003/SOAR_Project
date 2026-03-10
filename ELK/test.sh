@@ -4,8 +4,8 @@
 
 set -euo pipefail
 
-BOT_TOKEN="7206087965:AAHa__By08f7TOYguk0HhHu1cmzPDhOYLAc"
-CHAT_ID="7054067416"
+BOT_TOKEN="YOUR_BOT_TOKEN"
+CHAT_ID="YOUR_CHAT_ID"
 KIBANA_URL="http://localhost:5601/app/discover"
 SLEEP_SEC=2
 

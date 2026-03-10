@@ -1,7 +1,13 @@
 .env
+.env.local
+.env.*.local
 *.log
 .DS_Store
 Thumbs.db
 ELK/security-elk/backend/logs/
+ELK/security-elk/backend/node_modules/
+ELK/security-elk/frontend/node_modules/
+node_modules/
 *.pdf
 *.docx
+data/

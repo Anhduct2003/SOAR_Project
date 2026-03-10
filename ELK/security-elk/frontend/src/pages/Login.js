@@ -6,7 +6,7 @@ const Login = () => {
   const navigate = useNavigate();
   const { login, loading, error, clearError } = useAuth();
   const [email, setEmail] = useState('admin@security.local');
-  const [password, setPassword] = useState('admin123');
+  const [password, setPassword] = useState('');
 
   const onSubmit = async (e) => {
     e.preventDefault();
