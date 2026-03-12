@@ -1,55 +1,104 @@
 import React from 'react';
-import { Link, useNavigate, Outlet } from 'react-router-dom';
+import { NavLink, useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
+import { 
+  HomeIcon, 
+  ShieldExclamationIcon, 
+  BellIcon, 
+  UsersIcon, 
+  Cog6ToothIcon,
+  ArrowLeftOnRectangleIcon,
+  SunIcon,
+  MoonIcon,
+  ShieldCheckIcon
+} from '@heroicons/react/24/outline';
 import './Layout.css';
 
-const Layout = ({ children }) => {
-  const { isAuthenticated, logout, user } = useAuth();
+const Layout = () => {
+  const { logout, user } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
+  const navItems = [
+    { name: 'Dashboard', path: '/dashboard', icon: HomeIcon },
+    { name: 'Incidents', path: '/incidents', icon: ShieldExclamationIcon },
+    { name: 'Alerts', path: '/alerts', icon: BellIcon },
+    { name: 'Users', path: '/users', icon: UsersIcon },
+    { name: 'Settings', path: '/settings', icon: Cog6ToothIcon },
+  ];
+
+  const getPageTitle = () => {
+    const item = navItems.find(item => item.path === location.pathname);
+    return item ? item.name : 'Security Dashboard';
+  };
+
   return (
     <div className="layout">
-      <header className="header">
-        <div className="container">
-          <div className="header-content">
-            <Link to="/" className="logo">
-              <h1>Security SIRS</h1>
-            </Link>
-            {isAuthenticated && (
-              <nav className="nav">
-                <Link to="/dashboard" className="nav-link">Dashboard</Link>
-                <Link to="/incidents" className="nav-link">Sự cố</Link>
-                <Link to="/alerts" className="nav-link">Cảnh báo</Link>
-                <Link to="/users" className="nav-link">Người dùng</Link>
-                <Link to="/settings" className="nav-link">Cài đặt</Link>
-                <div className="user-menu">
-                  <span className="username">{user?.name || 'User'}</span>
-                  <button onClick={handleLogout} className="logout-btn">
-                    Đăng xuất
-                  </button>
-                </div>
-              </nav>
-            )}
+      {/* Sidebar */}
+      <aside className="sidebar">
+        <div className="sidebar-header">
+          <div className="sidebar-logo">
+            <ShieldCheckIcon className="w-8 h-8 text-sky-400" style={{ width: 32, height: 32, color: '#38bdf8' }} />
+            <span>Cyber Sentinel</span>
           </div>
         </div>
-      </header>
+        
+        <nav className="sidebar-nav">
+          {navItems.map((item) => (
+            <NavLink 
+              key={item.path} 
+              to={item.path}
+              className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+            >
+              <item.icon />
+              <span>{item.name}</span>
+            </NavLink>
+          ))}
+          
+          <button 
+            onClick={handleLogout} 
+            className="sidebar-link" 
+            style={{ marginTop: 'auto', background: 'none', border: 'none', width: '100%', cursor: 'pointer' }}
+          >
+            <ArrowLeftOnRectangleIcon />
+            <span>Đăng xuất</span>
+          </button>
+        </nav>
+      </aside>
 
-      <main className="main-content">
-        <div className="container">
-          {children || <Outlet />}
+      {/* Main Area */}
+      <main className="main-area">
+        <header className="top-nav">
+          <h2 className="page-title">{getPageTitle()}</h2>
+          
+          <div className="nav-right">
+            <button className="theme-toggle" onClick={toggleTheme} title="Đổi giao diện">
+              {theme === 'light' ? <MoonIcon style={{ width: 20 }} /> : <SunIcon style={{ width: 20 }} />}
+            </button>
+            
+            <div className="user-profile">
+              <div className="user-avatar">
+                {user?.name?.charAt(0) || 'A'}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{user?.name || 'Admin'}</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{user?.role || 'Security Analyst'}</span>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div className="content-wrapper animate-fade-in">
+          <Outlet />
         </div>
       </main>
-
-      <footer className="footer">
-        <div className="container">
-          <p>&copy; 2024 Security Incident Response System. All rights reserved.</p>
-        </div>
-      </footer>
     </div>
   );
 };
