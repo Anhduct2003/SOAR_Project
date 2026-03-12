@@ -45,12 +45,12 @@ Authorization: Bearer <your-jwt-token>
     },
     servers: [
       {
-        url: 'http://localhost:5001',
-        description: 'Development server'
+        url: process.env.API_URL || 'http://localhost:5001',
+        description: 'Current API Server'
       },
       {
-        url: 'https://api.security.company.com',
-        description: 'Production server'
+        url: 'http://localhost:5001',
+        description: 'Local development server'
       }
     ],
     components: {

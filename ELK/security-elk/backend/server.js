@@ -21,8 +21,8 @@ const dashboardRoutes = require('./routes/dashboard');
 const elasticsearchRoutes = require('./routes/elasticsearch');
 
 const app = express();
-// Tin tưởng proxy để lấy chính xác IP người dùng
-app.set('trust proxy', true);
+// Tin tưởng proxy (Nginx) để lấy chính xác IP người dùng
+app.set('trust proxy', 1);
 
 const server = http.createServer(app);
 
@@ -127,6 +127,14 @@ app.get('/api-docs', (req, res) => {
 // Swagger HTML Documentation
 app.get('/docs', (req, res) => {
   res.redirect('/swagger.html');
+});
+
+// Configuration endpoint for dynamic documentation/frontend
+app.get('/api/config', (req, res) => {
+  res.json({
+    apiUrl: process.env.API_URL || `${req.protocol}://${req.get('host')}`,
+    nodeEnv: process.env.NODE_ENV || 'development'
+  });
 });
 
 // Swagger Documentation - See API_DOCUMENTATION.md for full details

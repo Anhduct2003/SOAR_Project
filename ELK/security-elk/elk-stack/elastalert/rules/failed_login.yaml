@@ -1,14 +1,13 @@
 name: Failed Login Attempts
 type: frequency
-index: filebeat-*
-num_events: 3
+index: security-logs-*
+num_events: 5
 timeframe:
-  minutes: 2
+  minutes: 5
 
 filter:
-- query:
-    query_string:
-      query: "auth_message:*Failed*password*"
+- term:
+    security_event: "failed_login"
 
 query_key: source.ip
 realert:
