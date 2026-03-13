@@ -19,6 +19,7 @@ const incidentRoutes = require('./routes/incidents');
 const alertRoutes = require('./routes/alerts');
 const dashboardRoutes = require('./routes/dashboard');
 const elasticsearchRoutes = require('./routes/elasticsearch');
+const healthRoutes = require('./routes/health');
 
 const app = express();
 // Tin tưởng proxy (Nginx) để lấy chính xác IP người dùng
@@ -154,6 +155,7 @@ app.use('/api/incidents', incidentRoutes);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/elasticsearch', elasticsearchRoutes);
+app.use('/api/health', healthRoutes);
 
 // Socket.IO connection handling
 io.on('connection', (socket) => {

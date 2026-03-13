@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate, Outlet, useLocation } from 'react-router-dom';
+import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { 
@@ -11,9 +12,56 @@ import {
   ArrowLeftOnRectangleIcon,
   SunIcon,
   MoonIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon,
+  ServerIcon,
+  CircleStackIcon,
+  GlobeAltIcon
 } from '@heroicons/react/24/outline';
 import './Layout.css';
+
+const SystemHealth = () => {
+  const [health, setHealth] = useState({ backend: 'loading', mongodb: 'loading', elasticsearch: 'loading' });
+
+  const checkHealth = async () => {
+    try {
+      const res = await axios.get('/api/health/status');
+      setHealth(res.data.data);
+    } catch (e) {
+      setHealth({ backend: 'disconnected', mongodb: 'disconnected', elasticsearch: 'disconnected' });
+    }
+  };
+
+  useEffect(() => {
+    checkHealth();
+    const timer = setInterval(checkHealth, 30000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const StatusDot = ({ status }) => (
+    <div style={{ 
+      width: 8, height: 8, borderRadius: '50%', 
+      backgroundColor: status === 'connected' ? 'var(--color-low)' : status === 'loading' ? 'var(--text-muted)' : 'var(--color-critical)',
+      boxShadow: status === 'connected' ? '0 0 8px var(--color-low)' : 'none'
+    }} />
+  );
+
+  return (
+    <div style={{ display: 'flex', gap: '1.25rem', padding: '0 1rem', borderRight: '1px solid var(--border-color)', marginRight: '1rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }} title="Backend API">
+        <ServerIcon style={{ width: 14 }} />
+        <StatusDot status={health.backend} />
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }} title="MongoDB">
+        <CircleStackIcon style={{ width: 14 }} />
+        <StatusDot status={health.mongodb} />
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }} title="Elasticsearch">
+        <GlobeAltIcon style={{ width: 14 }} />
+        <StatusDot status={health.elasticsearch} />
+      </div>
+    </div>
+  );
+};
 
 const Layout = () => {
   const { logout, user } = useAuth();
@@ -79,6 +127,8 @@ const Layout = () => {
           <h2 className="page-title">{getPageTitle()}</h2>
           
           <div className="nav-right">
+            <SystemHealth />
+            
             <button className="theme-toggle" onClick={toggleTheme} title="Đổi giao diện">
               {theme === 'light' ? <MoonIcon style={{ width: 20 }} /> : <SunIcon style={{ width: 20 }} />}
             </button>

@@ -7,7 +7,11 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   FunnelIcon,
-  NoSymbolIcon
+  NoSymbolIcon,
+  BellSlashIcon,
+  UserCircleIcon,
+  EyeIcon,
+  EllipsisVerticalIcon
 } from '@heroicons/react/24/outline';
 
 const Incidents = () => {
@@ -28,6 +32,7 @@ const Incidents = () => {
   
   const [totalPages, setTotalPages] = useState(1);
   const [selected, setSelected] = useState({});
+  const [activeMenu, setActiveMenu] = useState(null);
 
   const fetchIncidents = useCallback(async () => {
     if (!token) return;
@@ -80,6 +85,7 @@ const Incidents = () => {
     } catch (e) {
       alert(e.response?.data?.message || 'Chặn IP thất bại');
     }
+    setActiveMenu(null);
   };
 
   const handleExportCSV = () => {
@@ -154,7 +160,7 @@ const Incidents = () => {
       </div>
 
       {/* Incidents Table */}
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div className="card" style={{ padding: 0, overflow: 'visible' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
           <thead>
             <tr style={{ backgroundColor: 'rgba(0,0,0,0.02)', borderBottom: '1px solid var(--border-color)' }}>
@@ -174,7 +180,7 @@ const Incidents = () => {
               <th style={{ padding: '1rem 1.5rem', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>SEVERITY</th>
               <th style={{ padding: '1rem 1.5rem', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>STATUS</th>
               <th style={{ padding: '1rem 1.5rem', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>DETECTED AT</th>
-              <th style={{ padding: '1rem 1.5rem', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem', textAlign: 'right' }}>ACTIONS</th>
+              <th style={{ padding: '1rem 1.5rem', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem', textAlign: 'right' }}>RESPONSE</th>
             </tr>
           </thead>
           <tbody>
@@ -209,16 +215,45 @@ const Incidents = () => {
                 <td style={{ padding: '1rem 1.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
                   {new Date(incident.detectedAt).toLocaleString()}
                 </td>
-                <td style={{ padding: '1rem 1.5rem', textAlign: 'right' }}>
-                  {incident.ipAddresses?.length > 0 && (
-                    <button 
-                      onClick={() => handleBlockIP(incident.ipAddresses[0])}
-                      className="btn" 
-                      style={{ padding: '0.4rem', color: 'var(--color-critical)' }}
-                      title="Block Attacker IP"
-                    >
-                      <NoSymbolIcon style={{ width: 20 }} />
-                    </button>
+                <td style={{ padding: '1rem 1.5rem', textAlign: 'right', position: 'relative' }}>
+                  <button 
+                    onClick={() => setActiveMenu(activeMenu === incident.id ? null : incident.id)}
+                    className="btn" 
+                    style={{ padding: '0.4rem', color: 'var(--text-secondary)' }}
+                  >
+                    <EllipsisVerticalIcon style={{ width: 22 }} />
+                  </button>
+                  
+                  {activeMenu === incident.id && (
+                    <div style={{ 
+                      position: 'absolute', 
+                      right: '1rem', 
+                      top: '3rem', 
+                      backgroundColor: 'var(--bg-surface)', 
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '8px',
+                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.4)',
+                      zIndex: 100,
+                      minWidth: '180px',
+                      overflow: 'hidden'
+                    }}>
+                      <button className="menu-item" style={{ width: '100%', textAlign: 'left', padding: '0.6rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                        <EyeIcon style={{ width: 16 }} /> View Details
+                      </button>
+                      <button 
+                        onClick={() => handleBlockIP(incident.ipAddresses?.[0])}
+                        className="menu-item" 
+                        style={{ width: '100%', textAlign: 'left', padding: '0.6rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--color-critical)' }}
+                      >
+                        <NoSymbolIcon style={{ width: 16 }} /> Block IP
+                      </button>
+                      <button className="menu-item" style={{ width: '100%', textAlign: 'left', padding: '0.6rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                        <BellSlashIcon style={{ width: 16 }} /> Mute Alert
+                      </button>
+                      <button className="menu-item" style={{ width: '100%', textAlign: 'left', padding: '0.6rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', border: 'none', background: 'none', cursor: 'pointer', borderTop: '1px solid var(--border-color)', color: 'var(--accent-color)' }}>
+                        <UserCircleIcon style={{ width: 16 }} /> Assign to Me
+                      </button>
+                    </div>
                   )}
                 </td>
               </tr>
