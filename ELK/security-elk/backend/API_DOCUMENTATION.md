@@ -1,7 +1,7 @@
 # Security Incident Response API Documentation
 
 ## 🚀 **API Overview**
-Base URL: `http://localhost:5001`
+Base URL: `http://<SERVER_IP>:5001`
 Authentication: Bearer JWT Token
 
 ---
@@ -182,7 +182,7 @@ Response (200):
       "source": "automated",
       "affectedSystems": ["web-server-01"],
       "affectedUsers": ["john.doe@company.com"],
-      "ipAddresses": ["192.168.1.100"],
+      "ipAddresses": ["127.0.0.1"],
       "detectedAt": "2025-09-04T08:30:00.000Z",
       "createdAt": "2025-09-04T08:35:00.000Z",
       "createdBy": "60b8d8f8e1b2c1234567890b"
@@ -204,7 +204,7 @@ Request Body:
   "source": "automated",
   "affectedSystems": ["web-server-01", "database-server-02"],
   "affectedUsers": ["john.doe@company.com"],
-  "ipAddresses": ["192.168.1.100", "10.0.0.5"],
+  "ipAddresses": ["127.0.0.1", "10.0.0.5"],
   "detectedAt": "2025-09-04T08:30:00.000Z",
   "estimatedImpact": "major",
   "assignedTo": "60b8d8f8e1b2c1234567890a"
@@ -381,20 +381,20 @@ Response (200):
 
 ### Test login:
 ```bash
-curl -X POST http://localhost:5001/api/auth/login \
+curl -X POST http://<SERVER_IP>:5001/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@admin.com","password":"admin123"}'
 ```
 
 ### Test dashboard stats (sau khi có token):
 ```bash
-curl -X GET http://localhost:5001/api/dashboard/stats \
+curl -X GET http://<SERVER_IP>:5001/api/dashboard/stats \
   -H "Authorization: Bearer <YOUR_JWT_TOKEN>"
 ```
 
 ### Test tạo incident:
 ```bash
-curl -X POST http://localhost:5001/api/incidents \
+curl -X POST http://<SERVER_IP>:5001/api/incidents \
   -H "Authorization: Bearer <YOUR_JWT_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{

@@ -89,18 +89,21 @@ if (db.users.countDocuments({ email: viewerUser.email }) === 0) {
   print("Viewer user created");
 }
 
+// Cấu hình IP mẫu cho dữ liệu demo - Ưu tiên từ biến môi trường
+const sampleIp = typeof process !== 'undefined' && process.env.SAMPLE_IP ? process.env.SAMPLE_IP : "127.0.0.1";
+
 // Tạo dữ liệu mẫu cho incidents
 const sampleIncidents = [
   {
     title: "Phát hiện đăng nhập thất bại nhiều lần",
-    description: "Hệ thống phát hiện nhiều lần đăng nhập thất bại từ IP 192.168.1.100",
+    description: `Hệ thống phát hiện nhiều lần đăng nhập thất bại từ IP ${sampleIp}`,
     severity: "medium",
     status: "open",
     category: "authentication",
     source: "automated",
     affectedSystems: ["web-server-01", "database-server"],
     affectedUsers: ["user1", "user2"],
-    ipAddresses: ["192.168.1.100"],
+    ipAddresses: [sampleIp],
     location: {
       country: "Vietnam",
       city: "Ho Chi Minh City",
@@ -192,11 +195,11 @@ sampleIncidents.forEach(incident => {
 const sampleAlerts = [
   {
     title: "Failed Login Attempts",
-    message: "Multiple failed login attempts detected from IP 192.168.1.100",
+    message: `Multiple failed login attempts detected from IP ${sampleIp}`,
     severity: "medium",
     status: "new",
     source: "auth.log",
-    sourceIp: "192.168.1.100",
+    sourceIp: sampleIp,
     timestamp: new Date(Date.now() - 1800000), // 30 phút trước
     acknowledged: false,
     acknowledgedBy: null,

@@ -9,6 +9,12 @@ filter:
       event.dataset: "flow"
   - term:
       network.transport: "tcp"
+  - not:
+      cidr:
+        source.ip: "172.16.0.0/12"
+  - not:
+      cidr:
+        source.ip: "192.168.0.0/16"
 
 query_key: source.ip
 cardinality_field: destination.port

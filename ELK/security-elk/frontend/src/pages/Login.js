@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { ShieldCheckIcon } from '@heroicons/react/24/outline';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -11,12 +12,9 @@ const Login = () => {
   const onSubmit = async (e) => {
     e.preventDefault();
     clearError();
-    console.log('Submitting login with:', { email });
     try {
       const res = await login(email, password);
-      console.log('Login response:', res);
       if (res.success) {
-        console.log('Login successful, redirecting to dashboard');
         navigate('/');
       }
     } catch (error) {
@@ -25,20 +23,76 @@ const Login = () => {
   };
 
   return (
-    <div className="container" style={{ maxWidth: 420 }}>
-      <h2>Đăng nhập</h2>
-      <form onSubmit={onSubmit}>
-        <div className="form-group">
-          <label>Email</label>
-          <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required />
+    <div style={{ 
+      minHeight: '100vh', 
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'center',
+      backgroundColor: 'var(--bg-primary)',
+      backgroundImage: 'radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.05) 0%, transparent 100%)'
+    }}>
+      <div className="card animate-fade-in" style={{ width: '100%', maxWidth: '400px', padding: '2.5rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <div style={{ 
+            display: 'inline-flex', 
+            padding: '1rem', 
+            borderRadius: '16px', 
+            backgroundColor: 'var(--accent-color)', 
+            color: 'white',
+            marginBottom: '1rem',
+            boxShadow: '0 0 20px rgba(56, 189, 248, 0.3)'
+          }}>
+            <ShieldCheckIcon style={{ width: 40, height: 40 }} />
+          </div>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Cyber Sentinel</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.5rem' }}>SIEM/SOAR Portal Login</p>
         </div>
-        <div className="form-group">
-          <label>Mật khẩu</label>
-          <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" required />
-        </div>
-        {error && <div className="alert alert-error">{error}</div>}
-        <button className="btn" type="submit" disabled={loading}>{loading ? 'Đang đăng nhập...' : 'Đăng nhập'}</button>
-      </form>
+
+        <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Email Address</label>
+            <input 
+              value={email} 
+              onChange={(e) => setEmail(e.target.value)} 
+              type="email" 
+              required 
+              placeholder="name@company.com"
+              style={{ padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Password</label>
+            <input 
+              value={password} 
+              onChange={(e) => setPassword(e.target.value)} 
+              type="password" 
+              required 
+              placeholder="••••••••"
+              style={{ padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', outline: 'none' }}
+            />
+          </div>
+
+          {error && (
+            <div className="badge badge-critical" style={{ padding: '0.75rem', textAlign: 'center', borderRadius: '8px' }}>
+              {error}
+            </div>
+          )}
+
+          <button 
+            className="btn btn-primary" 
+            type="submit" 
+            disabled={loading}
+            style={{ padding: '0.875rem', fontSize: '1rem', marginTop: '0.5rem' }}
+          >
+            {loading ? 'Authenticating...' : 'Sign In to Portal'}
+          </button>
+        </form>
+
+        <p style={{ textAlign: 'center', marginTop: '2rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          SECURE CHANNEL ENCRYPTED
+        </p>
+      </div>
     </div>
   );
 };

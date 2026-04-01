@@ -68,8 +68,8 @@ services:
     image: mongo:6.0
     container_name: mongodb
     environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
       MONGO_INITDB_DATABASE: security_incidents
     volumes:
       - mongodb_data:/data/db
@@ -92,19 +92,21 @@ services:
       dockerfile: Dockerfile
     container_name: backend
     environment:
-      - NODE_ENV=production
-      - PORT=5000
-      - MONGODB_URI=mongodb://admin:password123@mongodb:27017/security_incidents?authSource=admin
-      - ELASTICSEARCH_URL=http://elasticsearch:9200
-      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
-      - TELEGRAM_BOT_TOKEN=8214485437:AAGGu2Q8DvDhgz8SuNxUZUCi4OPWeECOl9s
-      - TELEGRAM_CHAT_ID=5840055926
-      - DEFAULT_INCIDENT_OWNER_ID=68c123ccb15b6f17cffa3350
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=${PORT:-5000}
+      - MONGODB_URI=${MONGODB_URI}
+      - ELASTICSEARCH_URL=${ELASTICSEARCH_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - DEFAULT_INCIDENT_OWNER_ID=${DEFAULT_INCIDENT_OWNER_ID}
+      - API_URL=${API_URL}
+      - SAMPLE_IP=${SAMPLE_IP}
     volumes:
       - ./backend:/app
       - /app/node_modules
     ports:
-      - "5001:5000"
+      - "5001:${PORT:-5000}"
     networks:
       - elk
     depends_on:

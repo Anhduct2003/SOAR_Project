@@ -467,5 +467,60 @@
         <p><strong>Port:</strong> 5001 | <strong>Database:</strong> MongoDB | <strong>Auth:</strong> JWT</p>
     </div>
 
+    <script>
+        // Dynamically update Base URL and examples based on current host or environment
+        async function updateDocumentation() {
+            let apiUrl = `${window.location.protocol}//${window.location.host}`;
+            let hostname = window.location.hostname;
+
+            try {
+                // Try to get official config from backend (prioritizes .env)
+                const response = await fetch('/api/config');
+                if (response.ok) {
+                    const config = await response.json();
+                    if (config.apiUrl) {
+                        apiUrl = config.apiUrl;
+                        // Extract hostname from apiUrl if it's a full URL
+                        try {
+                            hostname = new URL(apiUrl).hostname;
+                        } catch(e) {}
+                    }
+                }
+            } catch (err) {
+                console.log('Using window.location fallback');
+            }
+            
+            // Update Base URL display
+            const baseUrlElements = document.querySelectorAll('code');
+            baseUrlElements.forEach(el => {
+                if (el.textContent.includes('http://localhost:5001') || el.textContent.includes('http://<SERVER_IP>:5001')) {
+                    el.textContent = el.textContent.replace(/http:\/\/(localhost|<SERVER_IP>):5001/g, apiUrl);
+                }
+                // Also update the example IP 192.168.1.100 if it exists
+                if (el.textContent.includes('192.168.1.100')) {
+                    el.textContent = el.textContent.replace(/192.168.1.100/g, hostname);
+                }
+            });
+
+            // Update curl examples in .code blocks
+            const codeBlocks = document.querySelectorAll('.code');
+            codeBlocks.forEach(block => {
+                if (block.textContent.includes('http://localhost:5001') || block.textContent.includes('http://<SERVER_IP>:5001')) {
+                    block.textContent = block.textContent.replace(/http:\/\/(localhost|<SERVER_IP>):5001/g, apiUrl);
+                }
+                if (block.textContent.includes('192.168.1.100')) {
+                    block.textContent = block.textContent.replace(/192.168.1.100/g, hostname);
+                }
+            });
+
+            // Update header Base URL specific display
+            const headerBaseUrl = document.querySelector('.header p strong + code');
+            if (headerBaseUrl) {
+                headerBaseUrl.textContent = apiUrl;
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', updateDocumentation);
+    </script>
 </body>
 </html>

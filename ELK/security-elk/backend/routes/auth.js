@@ -209,6 +209,8 @@ router.post('/login', async (req, res, next) => {
     // Kiểm tra password
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
+      const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+      logger.warn(`Failed login attempt for user ${email} from IP ${clientIp}`);
       return res.status(401).json({
         success: false,
         message: 'Thông tin đăng nhập không hợp lệ'
@@ -225,7 +227,12 @@ router.post('/login', async (req, res, next) => {
 
     // Cập nhật last login
     user.lastLogin = Date.now();
-    await user.save();
+    try {
+      await user.save();
+    } catch (saveError) {
+      console.error('Lỗi khi lưu User sau login:', saveError);
+      throw saveError;
+    }
 
     // Tạo token
     const token = generateToken(user._id);

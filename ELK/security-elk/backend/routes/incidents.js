@@ -179,7 +179,7 @@ router.get('/', protect, async (req, res, next) => {
  *                 items:
  *                   type: string
  *                   format: ipv4
- *                 example: ["192.168.1.100"]
+ *                 example: ["127.0.0.1"]
  *     responses:
  *       201:
  *         description: Incident được tạo thành công

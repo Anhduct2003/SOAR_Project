@@ -1,387 +1,294 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
-// Kiểm tra xem date-fns đã được cài đặt chưa
-// import { format } from 'date-fns';
+import { 
+  MagnifyingGlassIcon, 
+  ArrowDownTrayIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  FunnelIcon,
+  NoSymbolIcon,
+  BellSlashIcon,
+  UserCircleIcon,
+  EyeIcon,
+  EllipsisVerticalIcon
+} from '@heroicons/react/24/outline';
 
 const Incidents = () => {
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { token } = useAuth();
-  const [severity, setSeverity] = useState('');
-  const [status, setStatus] = useState('');
-  const [sinceHours, setSinceHours] = useState(24);
-  const [page, setPage] = useState(1);
-  const [limit] = useState(20);
+  
+  const [filters, setFilters] = useState({
+    severity: '',
+    status: '',
+    sinceHours: 24,
+    q: '',
+    page: 1,
+    sortBy: 'createdAt',
+    sortDir: 'desc'
+  });
+  
   const [totalPages, setTotalPages] = useState(1);
-  const [q, setQ] = useState('');
-  const [qDebounced, setQDebounced] = useState('');
-  const [sortBy, setSortBy] = useState('createdAt');
-  const [sortDir, setSortDir] = useState('desc');
   const [selected, setSelected] = useState({});
+  const [activeMenu, setActiveMenu] = useState(null);
 
-  // Fetch incidents on component mount
-  useEffect(() => {
-    const fetchIncidents = async () => {
-      if (!token) {
-        console.log('Không có token, không thể gửi request');
-        setError('Vui lòng đăng nhập lại để xem sự cố');
-        setLoading(false);
-        return;
-      }
-      
-      try {
-        setLoading(true);
-        console.log('Đang gửi yêu cầu đến API với token:', token ? 'Token hợp lệ' : 'Không có token');
-        
-        const params = { limit, sortBy, sortDir };
-        if (severity) params.severity = severity;
-        if (status) params.status = status;
-        if (sinceHours) params.since = new Date(Date.now() - sinceHours * 3600 * 1000).toISOString();
-        if (page) params.page = page;
-        if (qDebounced) params.q = qDebounced;
-        
-        const response = await axios.get('/api/incidents', { params, headers: { 'Authorization': `Bearer ${token}` } });
-        
-        console.log('Dữ liệu nhận được từ API:', response.data);
-        
-        // Kiểm tra cấu trúc dữ liệu trả về
-        if (response.data && response.data.data) {
-          const list = response.data.data.map(i => ({ id: i._id || i.id, ...i }));
-          setIncidents(list);
-          if (response.data.pagination) {
-            setTotalPages(response.data.pagination.pages || 1);
-          }
-          console.log('Số lượng sự cố:', response.data.data.length);
-        } else {
-          console.log('Định dạng dữ liệu không như mong đợi:', response.data);
-          setIncidents([]);
-        }
-        
-        setLoading(false);
-      } catch (error) {
-        console.error('Error fetching incidents:', error);
-        console.error('Error details:', error.response?.data || error.message || 'Không có chi tiết lỗi');
-        console.error('Error status:', error.response?.status);
-        setError('Không thể tải danh sách sự cố: ' + (error.message || 'Lỗi không xác định'));
-        setLoading(false);
-      }
-    };
-
-    fetchIncidents();
-  }, [token, severity, status, sinceHours, page, limit, qDebounced]);
-
-  useEffect(() => {
-    const t = setTimeout(() => setQDebounced(q), 400);
-    return () => clearTimeout(t);
-  }, [q]);
-
-  // Get severity class for styling
-  const getSeverityClass = (severity) => {
-    switch (severity) {
-      case 'low':
-        return 'severity-low';
-      case 'medium':
-        return 'severity-medium';
-      case 'high':
-        return 'severity-high';
-      case 'critical':
-        return 'severity-critical';
-      default:
-        return '';
-    }
-  };
-
-  // Get status class for styling
-  const getStatusClass = (status) => {
-    switch (status) {
-      case 'open':
-        return 'status-open';
-      case 'investigating':
-        return 'status-investigating';
-      case 'contained':
-        return 'status-contained';
-      case 'resolved':
-        return 'status-resolved';
-      case 'closed':
-        return 'status-closed';
-      default:
-        return '';
-    }
-  };
-
-  // Format date
-  const formatDate = (dateString) => {
+  const fetchIncidents = useCallback(async () => {
+    if (!token) return;
     try {
-      // Sử dụng Date trực tiếp thay vì format từ date-fns
-      const date = new Date(dateString);
-      return date.toLocaleString('vi-VN');
-    } catch (error) {
-      return dateString || 'N/A';
+      setLoading(true);
+      const params = { 
+        limit: 15, 
+        sortBy: filters.sortBy, 
+        sortDir: filters.sortDir,
+        page: filters.page
+      };
+      if (filters.severity) params.severity = filters.severity;
+      if (filters.status) params.status = filters.status;
+      if (filters.sinceHours) params.since = new Date(Date.now() - filters.sinceHours * 3600 * 1000).toISOString();
+      if (filters.q) params.q = filters.q;
+      
+      const res = await axios.get('/api/incidents', { 
+        params, 
+        headers: { 'Authorization': `Bearer ${token}` } 
+      });
+      
+      if (res.data && res.data.data) {
+        setIncidents(res.data.data.map(i => ({ id: i._id || i.id, ...i })));
+        setTotalPages(res.data.pagination?.pages || 1);
+      }
+    } catch (err) {
+      setError(err.message || 'Lỗi tải dữ liệu');
+    } finally {
+      setLoading(false);
     }
+  }, [token, filters]);
+
+  useEffect(() => {
+    const timer = setTimeout(fetchIncidents, 300);
+    return () => clearTimeout(timer);
+  }, [fetchIncidents]);
+
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value, page: key === 'page' ? value : 1 }));
   };
 
-  if (loading) {
-    return (
-      <div>
-        <h2>Danh sách sự cố</h2>
-        <div className="card">Đang tải dữ liệu...</div>
-      </div>
-    );
-  }
+  const handleBlockIP = async (ip) => {
+    const reason = prompt(`Chặn IP ${ip}? Nhập lý do:`, 'Manual block from incident list');
+    if (!reason) return;
+    try {
+      await axios.post('/api/incidents/block-ip', { ip, reason }, { 
+        headers: { 'Authorization': `Bearer ${token}` } 
+      });
+      alert(`Đã chặn IP ${ip}`);
+    } catch (e) {
+      alert(e.response?.data?.message || 'Chặn IP thất bại');
+    }
+    setActiveMenu(null);
+  };
 
-  if (error) {
-    return (
-      <div>
-        <h2>Danh sách sự cố</h2>
-        <div className="card error">{error}</div>
-      </div>
-    );
-  }
+  const handleExportCSV = () => {
+    const headers = ['Title', 'Severity', 'Status', 'Category', 'Detected At', 'IPs'];
+    const rows = incidents.map(i => [
+      i.title, i.severity, i.status, i.category, 
+      new Date(i.detectedAt).toLocaleString(),
+      (i.ipAddresses || []).join(' ')
+    ].map(v => `"${v}"`).join(','));
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `incidents_${Date.now()}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  if (error) return <div className="alert alert-error">{error}</div>;
 
   return (
-    <div>
-      <h2>Danh sách sự cố</h2>
-      <div className="card" style={{ padding: 12, marginBottom: 12 }}>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <input placeholder="Tìm kiếm (tiêu đề/mô tả/danh mục)" value={q} onChange={e => { setPage(1); setQ(e.target.value); }} style={{ minWidth: 240 }} />
-          <label>
-            Sắp xếp:
-            <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ marginLeft: 8 }}>
-              <option value="createdAt">Thời gian tạo</option>
-              <option value="detectedAt">Thời gian phát hiện</option>
-              <option value="severity">Mức độ</option>
-              <option value="status">Trạng thái</option>
-              <option value="category">Danh mục</option>
-            </select>
-            <select value={sortDir} onChange={e => setSortDir(e.target.value)} style={{ marginLeft: 8 }}>
-              <option value="desc">Giảm dần</option>
-              <option value="asc">Tăng dần</option>
-            </select>
-          </label>
-        </div>
-      </div>
-      <div className="card" style={{ padding: 12, marginBottom: 12 }}>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <label>
-            Severity:
-            <select value={severity} onChange={e => { setPage(1); setSeverity(e.target.value); }} style={{ marginLeft: 8 }}>
-              <option value="">Tất cả</option>
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-              <option value="critical">Critical</option>
-            </select>
-          </label>
-          <label>
-            Status:
-            <select value={status} onChange={e => { setPage(1); setStatus(e.target.value); }} style={{ marginLeft: 8 }}>
-              <option value="">Tất cả</option>
+    <div className="incidents-page">
+      {/* Search and Filters Bar */}
+      <div className="card" style={{ marginBottom: '1.5rem', padding: '1rem' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ position: 'relative', flex: 1, minWidth: '300px' }}>
+            <MagnifyingGlassIcon style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', width: '18px', color: 'var(--text-muted)' }} />
+            <input 
+              type="text" 
+              placeholder="Search incidents..." 
+              value={filters.q}
+              onChange={e => handleFilterChange('q', e.target.value)}
+              style={{ width: '100%', padding: '0.625rem 1rem 0.625rem 2.5rem', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
+            />
+          </div>
+          
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <FunnelIcon style={{ width: 18, color: 'var(--text-secondary)' }} />
+              <select 
+                value={filters.severity} 
+                onChange={e => handleFilterChange('severity', e.target.value)}
+                style={{ padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}
+              >
+                <option value="">All Severity</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+              </select>
+            </div>
+
+            <select 
+              value={filters.status} 
+              onChange={e => handleFilterChange('status', e.target.value)}
+              style={{ padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}
+            >
+              <option value="">All Status</option>
               <option value="open">Open</option>
               <option value="investigating">Investigating</option>
               <option value="contained">Contained</option>
               <option value="resolved">Resolved</option>
-              <option value="closed">Closed</option>
             </select>
-          </label>
-          <label>
-            Thời gian:
-            <select value={sinceHours} onChange={e => { setPage(1); setSinceHours(parseInt(e.target.value)); }} style={{ marginLeft: 8 }}>
-              <option value={1}>1 giờ</option>
-              <option value={6}>6 giờ</option>
-              <option value={12}>12 giờ</option>
-              <option value={24}>24 giờ</option>
-              <option value={72}>3 ngày</option>
-              <option value={168}>7 ngày</option>
-            </select>
-          </label>
-          <button onClick={() => {
-            const headers = ['title','severity','status','category','detectedAt','createdAt','ipAddresses'];
-            const rows = incidents.map(a => headers.map(h => {
-              const v = a[h];
-              if (Array.isArray(v)) return '"' + v.join(' ') + '"';
-              return (v ?? '');
-            }).join(','));
-            const csv = [headers.join(','), ...rows].join('\n');
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', `incidents_${Date.now()}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-          }}>Export CSV</button>
+
+            <button className="btn btn-primary" onClick={handleExportCSV}>
+              <ArrowDownTrayIcon style={{ width: 18 }} />
+              Export
+            </button>
+          </div>
         </div>
       </div>
-      
-      {/* Panel thông tin debug */}
-      <div className="debug-panel">
-        <h3>Thông tin debug</h3>
-        <div className="debug-info">
-          <p><strong>Trạng thái:</strong> {loading ? 'Đang tải...' : error ? 'Lỗi' : incidents.length > 0 ? 'Đã tải xong' : 'Không có dữ liệu'}</p>
-          <p><strong>Token:</strong> {token ? 'Hợp lệ' : 'Không có hoặc không hợp lệ'}</p>
-          <p><strong>Số sự cố:</strong> {incidents.length}</p>
-          {error && <p className="error-message"><strong>Lỗi:</strong> {error}</p>}
-        </div>
-      </div>
-      
-      <style jsx="true">{`
-        .debug-panel {
-          background-color: #182235;
-          border: 1px solid #2d3748;
-          border-radius: 4px;
-          padding: 15px;
-          margin-bottom: 20px;
-        }
-        
-        .debug-panel h3 {
-          margin-top: 0;
-          margin-bottom: 10px;
-          color: #a0aec0;
-          font-size: 16px;
-        }
-        
-        .debug-info {
-          font-family: monospace;
-          line-height: 1.5;
-        }
-        
-        .error-message {
-          color: #f56565;
-        }
-        
-        .incidents-list table {
-          width: 100%;
-          border-collapse: collapse;
-          margin-top: 20px;
-        }
-        .incidents-list th, .incidents-list td {
-          padding: 12px 15px;
-          text-align: left;
-          border-bottom: 1px solid #2d3748;
-        }
-        .incidents-list th {
-          background-color: #1a202c;
-          color: white;
-        }
-        .incidents-list tr:hover {
-          background-color: rgba(255, 255, 255, 0.05);
-        }
-        .badge {
-          padding: 5px 10px;
-          border-radius: 4px;
-          font-size: 12px;
-          font-weight: bold;
-          text-transform: uppercase;
-        }
-        .severity-low { background-color: #68d391; color: #22543d; }
-        .severity-medium { background-color: #f6ad55; color: #7b341e; }
-        .severity-high { background-color: #fc8181; color: #742a2a; }
-        .severity-critical { background-color: #b794f4; color: #44337a; }
-        
-        .status-open { background-color: #fc8181; color: #742a2a; }
-        .status-investigating { background-color: #f6ad55; color: #7b341e; }
-        .status-contained { background-color: #63b3ed; color: #2c5282; }
-        .status-resolved { background-color: #68d391; color: #22543d; }
-        .status-closed { background-color: #cbd5e0; color: #1a202c; }
-      `}</style>
-      
-      {incidents.length === 0 ? (
-        <div className="card">Không có sự cố nào.</div>
-      ) : (
-        <div className="incidents-list">
-          <table>
-            <thead>
-              <tr>
-                <th><input type="checkbox" checked={incidents.length > 0 && incidents.every(i => selected[i.id])} onChange={e => {
-                  const checked = e.target.checked; const map = {}; incidents.forEach(i => { map[i.id] = checked; }); setSelected(map);
-                }} /></th>
-                <th>Tiêu đề</th>
-                <th>Mức độ</th>
-                <th>Trạng thái</th>
-                <th>Danh mục</th>
-                <th>Thời gian phát hiện</th>
-                <th>IP tấn công</th>
+
+      {/* Incidents Table */}
+      <div className="card" style={{ padding: 0, overflow: 'visible' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <thead>
+            <tr style={{ backgroundColor: 'rgba(0,0,0,0.02)', borderBottom: '1px solid var(--border-color)' }}>
+              <th style={{ padding: '1rem 1.5rem', width: '40px' }}>
+                <input 
+                  type="checkbox" 
+                  checked={incidents.length > 0 && incidents.every(i => selected[i.id])}
+                  onChange={e => {
+                    const checked = e.target.checked;
+                    const newSelected = {};
+                    incidents.forEach(i => newSelected[i.id] = checked);
+                    setSelected(newSelected);
+                  }}
+                />
+              </th>
+              <th style={{ padding: '1rem 1.5rem', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>TITLE</th>
+              <th style={{ padding: '1rem 1.5rem', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>SEVERITY</th>
+              <th style={{ padding: '1rem 1.5rem', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>STATUS</th>
+              <th style={{ padding: '1rem 1.5rem', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem' }}>DETECTED AT</th>
+              <th style={{ padding: '1rem 1.5rem', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '0.875rem', textAlign: 'right' }}>RESPONSE</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan="6" style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-muted)' }}>Phân tích dữ liệu...</td></tr>
+            ) : incidents.length === 0 ? (
+              <tr><td colSpan="6" style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-muted)' }}>Không có sự cố nào khớp với bộ lọc.</td></tr>
+            ) : incidents.map(incident => (
+              <tr key={incident.id} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }}>
+                <td style={{ padding: '1rem 1.5rem' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={!!selected[incident.id]}
+                    onChange={e => setSelected(prev => ({ ...prev, [incident.id]: e.target.checked }))}
+                  />
+                </td>
+                <td style={{ padding: '1rem 1.5rem' }}>
+                  <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>{incident.title}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{incident.category} • {(incident.ipAddresses || []).join(', ')}</div>
+                </td>
+                <td style={{ padding: '1rem 1.5rem' }}>
+                  <span className={`badge badge-${incident.severity}`}>
+                    {incident.severity}
+                  </span>
+                </td>
+                <td style={{ padding: '1rem 1.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: incident.status === 'resolved' ? 'var(--color-low)' : 'var(--color-medium)' }} />
+                    {incident.status}
+                  </div>
+                </td>
+                <td style={{ padding: '1rem 1.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                  {new Date(incident.detectedAt).toLocaleString()}
+                </td>
+                <td style={{ padding: '1rem 1.5rem', textAlign: 'right', position: 'relative' }}>
+                  <button 
+                    onClick={() => setActiveMenu(activeMenu === incident.id ? null : incident.id)}
+                    className="btn" 
+                    style={{ padding: '0.4rem', color: 'var(--text-secondary)' }}
+                  >
+                    <EllipsisVerticalIcon style={{ width: 22 }} />
+                  </button>
+                  
+                  {activeMenu === incident.id && (
+                    <div style={{ 
+                      position: 'absolute', 
+                      right: '1rem', 
+                      top: '3rem', 
+                      backgroundColor: 'var(--bg-surface)', 
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '8px',
+                      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.4)',
+                      zIndex: 100,
+                      minWidth: '180px',
+                      overflow: 'hidden'
+                    }}>
+                      <button className="menu-item" style={{ width: '100%', textAlign: 'left', padding: '0.6rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                        <EyeIcon style={{ width: 16 }} /> View Details
+                      </button>
+                      <button 
+                        onClick={() => handleBlockIP(incident.ipAddresses?.[0])}
+                        className="menu-item" 
+                        style={{ width: '100%', textAlign: 'left', padding: '0.6rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--color-critical)' }}
+                      >
+                        <NoSymbolIcon style={{ width: 16 }} /> Block IP
+                      </button>
+                      <button className="menu-item" style={{ width: '100%', textAlign: 'left', padding: '0.6rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                        <BellSlashIcon style={{ width: 16 }} /> Mute Alert
+                      </button>
+                      <button className="menu-item" style={{ width: '100%', textAlign: 'left', padding: '0.6rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', border: 'none', background: 'none', cursor: 'pointer', borderTop: '1px solid var(--border-color)', color: 'var(--accent-color)' }}>
+                        <UserCircleIcon style={{ width: 16 }} /> Assign to Me
+                      </button>
+                    </div>
+                  )}
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {incidents.map((incident) => (
-                <tr key={incident.id}>
-                  <td><input type="checkbox" checked={!!selected[incident.id]} onChange={e => setSelected(prev => ({ ...prev, [incident.id]: e.target.checked }))} /></td>
-                  <td>{incident.title}</td>
-                  <td>
-                    <span className={`badge ${getSeverityClass(incident.severity)}`}>
-                      {incident.severity}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`badge ${getStatusClass(incident.status)}`}>
-                      {incident.status}
-                    </span>
-                  </td>
-                  <td>{incident.category}</td>
-                  <td>{formatDate(incident.detectedAt)}</td>
-                  <td>
-                    {(incident.ipAddresses || []).join(', ') || 'N/A'}
-                    {(incident.ipAddresses && incident.ipAddresses.length > 0) && (
-                      <button style={{ marginLeft: 8 }} onClick={async () => {
-                        const ip = incident.ipAddresses[0];
-                        const reason = prompt(`Chặn IP ${ip}? Nhập lý do (tuỳ chọn):`, 'auto-block from dashboard');
-                        try {
-                          const token = localStorage.getItem('token');
-                          await axios.post('/api/incidents/block-ip', { ip, reason }, { headers: { 'Authorization': `Bearer ${token}` } });
-                          alert(`Đã chặn IP ${ip}`);
-                        } catch (e) {
-                          alert(e.response?.data?.message || 'Chặn IP thất bại');
-                        }
-                      }}>Chặn IP</button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', paddingTop: 12 }}>
-            <span>Bulk cập nhật trạng thái:</span>
-            <select id="bulk-status">
-              <option value="open">Open</option>
-              <option value="investigating">Investigating</option>
-              <option value="contained">Contained</option>
-              <option value="resolved">Resolved</option>
-              <option value="closed">Closed</option>
-            </select>
-            <button onClick={async () => {
-              const ids = Object.entries(selected).filter(([, v]) => v).map(([k]) => k);
-              if (ids.length === 0) return alert('Chưa chọn bản ghi');
-              const statusValue = document.getElementById('bulk-status').value;
-              try {
-                await axios.put('/api/incidents/bulk-status', { ids, status: statusValue }, { headers: { 'Authorization': `Bearer ${token}` } });
-                setSelected({});
-                // trigger reload
-                const params = { limit, sortBy, sortDir };
-                if (severity) params.severity = severity;
-                if (status) params.status = status;
-                if (sinceHours) params.since = new Date(Date.now() - sinceHours * 3600 * 1000).toISOString();
-                if (page) params.page = page;
-                if (q) params.q = q;
-                const response = await axios.get('/api/incidents', { params, headers: { 'Authorization': `Bearer ${token}` } });
-                const list = response.data.data.map(i => ({ id: i._id || i.id, ...i }));
-                setIncidents(list);
-              } catch (e) {
-                alert(e.response?.data?.message || 'Bulk update thất bại');
-              }
-            }}>Áp dụng</button>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 12 }}>
-            <button disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Trang trước</button>
-            <span>Trang {page}/{totalPages}</span>
-            <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Trang sau</button>
+            ))}
+          </tbody>
+        </table>
+        
+        {/* Pagination bar */}
+        <div style={{ padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', backgroundColor: 'rgba(0,0,0,0.01)' }}>
+          <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+            Showing <strong>{incidents.length}</strong> incidents
+          </span>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button 
+              disabled={filters.page <= 1} 
+              onClick={() => handleFilterChange('page', filters.page - 1)}
+              className="btn" 
+              style={{ padding: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface)' }}
+            >
+              <ChevronLeftIcon style={{ width: 16 }} />
+            </button>
+            <span style={{ display: 'flex', alignItems: 'center', padding: '0 0.5rem', fontSize: '0.875rem' }}>
+              Page {filters.page} of {totalPages}
+            </span>
+            <button 
+              disabled={filters.page >= totalPages} 
+              onClick={() => handleFilterChange('page', filters.page + 1)}
+              className="btn" 
+              style={{ padding: '0.5rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface)' }}
+            >
+              <ChevronRightIcon style={{ width: 16 }} />
+            </button>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };

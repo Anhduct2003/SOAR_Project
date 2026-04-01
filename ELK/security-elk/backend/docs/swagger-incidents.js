@@ -91,7 +91,7 @@
  *                 items:
  *                   type: string
  *                   format: ipv4
- *                 example: ["192.168.1.100", "10.0.0.5"]
+ *                 example: ["127.0.0.1", "10.0.0.5"]
  *               detectedAt:
  *                 type: string
  *                 format: date-time

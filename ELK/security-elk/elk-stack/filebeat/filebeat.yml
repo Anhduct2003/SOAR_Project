@@ -36,19 +36,22 @@ processors:
       when.not.contains.tags: forwarded
   - add_docker_metadata: ~
 
-# Output directly to Elasticsearch instead of Logstash
-output.elasticsearch:
-  hosts: ["elasticsearch:9200"]
-  indices:
-    - index: "filebeat-system-%{+yyyy.MM.dd}"
-      when.equals:
-        log_type: "system"
-    - index: "filebeat-auth-%{+yyyy.MM.dd}"
-      when.equals:
-        log_type: "authentication"
-    - index: "filebeat-docker-%{+yyyy.MM.dd}"
-      when.contains:
-        docker.container.name: ""
+# Output directly to Logstash for custom parsing
+output.logstash:
+  hosts: ["logstash:5044"]
+
+# output.elasticsearch:
+#   hosts: ["elasticsearch:9200"]
+#   indices:
+#     - index: "filebeat-system-%{+yyyy.MM.dd}"
+#       when.equals:
+#         log_type: "system"
+#     - index: "filebeat-auth-%{+yyyy.MM.dd}"
+#       when.equals:
+#         log_type: "authentication"
+#     - index: "filebeat-docker-%{+yyyy.MM.dd}"
+#       when.contains:
+#         docker.container.name: ""
 
 setup.ilm.enabled: false
 setup.template.enabled: true
