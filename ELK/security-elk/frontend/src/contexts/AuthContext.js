@@ -4,6 +4,9 @@ import toast from 'react-hot-toast';
 
 const AuthContext = createContext();
 
+const getErrorMessage = (error, fallbackMessage) =>
+  error.response?.data?.message || error.response?.data?.error || fallbackMessage;
+
 // Initial state
 const initialState = {
   user: null,
@@ -81,13 +84,22 @@ const authReducer = (state, action) => {
 export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // Set auth token header
   const setAuthToken = (token) => {
     if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      axios.defaults.headers.common.Authorization = `Bearer ${token}`;
     } else {
-      delete axios.defaults.headers.common['Authorization'];
+      delete axios.defaults.headers.common.Authorization;
     }
+  };
+
+  const handleAuthFailure = (error, fallbackMessage) => {
+    const message = getErrorMessage(error, fallbackMessage);
+    setAuthToken(null);
+    dispatch({
+      type: AUTH_ACTIONS.AUTH_ERROR,
+      payload: message
+    });
+    return message;
   };
 
   // Load user
@@ -104,26 +116,7 @@ export const AuthProvider = ({ children }) => {
         dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
       }
     } catch (error) {
-      console.warn('Backend unavailable during loadUser, checking for mock session');
-      if (state.token) {
-        // Mock User fallback logic
-        const mockUser = {
-          id: '1',
-          name: 'Admin User (Mock)',
-          email: 'admin@security.local',
-          role: 'admin'
-        };
-
-        dispatch({
-          type: AUTH_ACTIONS.USER_LOADED,
-          payload: mockUser
-        });
-      } else {
-        dispatch({
-          type: AUTH_ACTIONS.AUTH_ERROR,
-          payload: error.response?.data?.message || 'Lỗi xác thực'
-        });
-      }
+      handleAuthFailure(error, 'Loi xac thuc');
     }
   };
 
@@ -134,7 +127,6 @@ export const AuthProvider = ({ children }) => {
 
       const res = await axios.post('/api/auth/login', { email, password });
 
-      // Set token in axios immediately
       if (res.data.token) {
         setAuthToken(res.data.token);
       }
@@ -144,32 +136,17 @@ export const AuthProvider = ({ children }) => {
         payload: res.data
       });
 
-      toast.success('Đăng nhập thành công!');
+      toast.success('Dang nhap thanh cong!');
       return { success: true };
     } catch (error) {
-      console.warn('Backend unavailable, switching to Mock Mode');
-
-      // Fallback cho chế độ Dev/Test không có backend
-      const mockToken = 'mock-jwt-token-for-testing';
-      const mockUser = {
-        id: '1',
-        name: 'Admin User (Mock)',
-        email: email,
-        role: 'admin'
-      };
-
-      setAuthToken(mockToken);
-
+      const message = getErrorMessage(error, 'Dang nhap that bai');
+      setAuthToken(null);
       dispatch({
-        type: AUTH_ACTIONS.LOGIN_SUCCESS,
-        payload: {
-          token: mockToken,
-          user: mockUser
-        }
+        type: AUTH_ACTIONS.LOGIN_FAIL,
+        payload: message
       });
-
-      toast.success('Đăng nhập (Chế độ Test Giao diện)!');
-      return { success: true };
+      toast.error(message);
+      return { success: false, error: message };
     }
   };
 
@@ -185,10 +162,10 @@ export const AuthProvider = ({ children }) => {
         payload: res.data
       });
 
-      toast.success('Đăng ký thành công!');
+      toast.success('Dang ky thanh cong!');
       return { success: true };
     } catch (error) {
-      const message = error.response?.data?.message || 'Đăng ký thất bại';
+      const message = getErrorMessage(error, 'Dang ky that bai');
       dispatch({
         type: AUTH_ACTIONS.LOGIN_FAIL,
         payload: message
@@ -200,11 +177,9 @@ export const AuthProvider = ({ children }) => {
 
   // Logout user
   const logout = () => {
-    // Clear token from axios headers
     setAuthToken(null);
-    // Clear state
     dispatch({ type: AUTH_ACTIONS.LOGOUT });
-    toast.success('Đã đăng xuất');
+    toast.success('Da dang xuat');
   };
 
   // Update user profile
@@ -215,10 +190,10 @@ export const AuthProvider = ({ children }) => {
         type: AUTH_ACTIONS.USER_LOADED,
         payload: res.data.user
       });
-      toast.success('Cập nhật thông tin thành công!');
+      toast.success('Cap nhat thong tin thanh cong!');
       return { success: true };
     } catch (error) {
-      const message = error.response?.data?.message || 'Cập nhật thất bại';
+      const message = getErrorMessage(error, 'Cap nhat that bai');
       toast.error(message);
       return { success: false, error: message };
     }
@@ -231,21 +206,19 @@ export const AuthProvider = ({ children }) => {
         currentPassword,
         newPassword
       });
-      toast.success('Đổi mật khẩu thành công!');
+      toast.success('Doi mat khau thanh cong!');
       return { success: true };
     } catch (error) {
-      const message = error.response?.data?.message || 'Đổi mật khẩu thất bại';
+      const message = getErrorMessage(error, 'Doi mat khau that bai');
       toast.error(message);
       return { success: false, error: message };
     }
   };
 
-  // Clear error
   const clearError = () => {
     dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
   };
 
-  // Load user on mount
   useEffect(() => {
     const initAuth = async () => {
       try {
@@ -260,33 +233,13 @@ export const AuthProvider = ({ children }) => {
           dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
         }
       } catch (error) {
-        console.warn('Backend unavailable during initAuth, checking for mock session');
-        if (state.token) {
-          // Mock User fallback logic
-          const mockUser = {
-            id: '1',
-            name: 'Admin User (Mock)',
-            email: 'admin@security.local',
-            role: 'admin'
-          };
-
-          dispatch({
-            type: AUTH_ACTIONS.USER_LOADED,
-            payload: mockUser
-          });
-        } else {
-          dispatch({
-            type: AUTH_ACTIONS.AUTH_ERROR,
-            payload: error.response?.data?.message || 'Lỗi xác thực'
-          });
-        }
+        handleAuthFailure(error, 'Loi xac thuc');
       }
     };
 
     initAuth();
   }, [state.token]);
 
-  // Set auth token on token change
   useEffect(() => {
     setAuthToken(state.token);
   }, [state.token]);

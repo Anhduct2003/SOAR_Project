@@ -1,19 +1,16 @@
 import axios from 'axios';
 
-// Đặt URL cơ sở cho tất cả các yêu cầu API
-// Ưu tiên biến môi trường; nếu không có, dùng same-origin để proxy qua Nginx (/api → backend)
-const defaultBaseUrl = (typeof window !== 'undefined' && window.location && window.location.origin)
-  ? window.location.origin
-  : 'http://localhost:3000';
-axios.defaults.baseURL = process.env.REACT_APP_API_URL || defaultBaseUrl;
+// Prefer explicit env config; otherwise use same-origin and let Nginx proxy /api.
+const defaultBaseUrl =
+  typeof window !== 'undefined' && window.location && window.location.origin
+    ? window.location.origin
+    : 'http://localhost:3000';
 
-// Đặt tiêu đề chung
+axios.defaults.baseURL = process.env.REACT_APP_API_URL || defaultBaseUrl;
 axios.defaults.headers.common['Content-Type'] = 'application/json';
 
-// Request interceptor để thêm token
 axios.interceptors.request.use(
-  request => {
-    // Lấy token từ localStorage cho mỗi request
+  (request) => {
     const token = localStorage.getItem('token');
     if (token) {
       request.headers.Authorization = `Bearer ${token}`;
@@ -21,23 +18,25 @@ axios.interceptors.request.use(
     console.log('API Request:', request);
     return request;
   },
-  error => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Response interceptor để xử lý lỗi
 axios.interceptors.response.use(
-  response => response,
-  error => {
+  (response) => response,
+  (error) => {
     console.error('API Error:', error.response || error);
-    
-    // Nếu lỗi 401 (Unauthorized), redirect về trang login
-    if (error.response && error.response.status === 401) {
+
+    const requestUrl = error.config?.url || '';
+    const isAuthSubmit =
+      requestUrl.includes('/api/auth/login') || requestUrl.includes('/api/auth/register');
+
+    if (error.response?.status === 401 && !isAuthSubmit) {
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
     }
-    
+
     return Promise.reject(error);
   }
 );
