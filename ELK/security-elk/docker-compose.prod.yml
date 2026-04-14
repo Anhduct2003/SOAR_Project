@@ -1,0 +1,41 @@
+# Production overrides for docker-compose.yml
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+version: '3.8'
+
+services:
+  elasticsearch:
+    environment:
+      - xpack.security.enabled=true
+      - xpack.security.authc.api_key.enabled=true
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-ChangeMe123!@#}
+    volumes:
+      - ./elk-stack/elasticsearch/certs:/usr/share/elasticsearch/config/certs
+
+  logstash:
+    environment:
+      LS_JAVA_OPTS: "-Xmx512m -Xms512m"
+      ELASTICSEARCH_USERNAME: logstash_system
+      ELASTICSEARCH_PASSWORD: ${ELASTIC_PASSWORD:-ChangeMe123!@#}
+
+  kibana:
+    environment:
+      ELASTICSEARCH_USERNAME: kibana_system
+      ELASTICSEARCH_PASSWORD: ${ELASTIC_PASSWORD:-ChangeMe123!@#}
+      SERVER_SSL_ENABLED: true
+      SERVER_SSL_CERTIFICATE: /usr/share/kibana/config/certs/kibana.crt
+      SERVER_SSL_KEY: /usr/share/kibana/config/certs/kibana.key
+
+  backend:
+    environment:
+      - NODE_ENV=production
+      - ELASTICSEARCH_USERNAME: elastic
+      - ELASTICSEARCH_PASSWORD: ${ELASTIC_PASSWORD:-ChangeMe123!@#}
+
+  frontend:
+    environment:
+      - NODE_ENV=production
+
+volumes:
+  elasticsearch_certs:
+    driver: local

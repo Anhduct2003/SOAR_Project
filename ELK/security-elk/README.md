@@ -99,6 +99,83 @@ docker-compose up -d frontend
 | Logstash | 5044, 5000, 9600 | Log processing |
 | MongoDB | 27017 | Database |
 
+## 🗺️ Sơ đồ kiến trúc
+
+### 1. Tổng quan hệ thống
+
+```mermaid
+flowchart LR
+    U[User / SOC Analyst]
+    F[Frontend Dashboard<br/>React + Nginx<br/>Port 3000]
+    B[Backend API<br/>Node.js + Express + JWT + Socket.IO<br/>Port 5001]
+    M[(MongoDB<br/>security_incidents<br/>Port 27017)]
+    E[(Elasticsearch<br/>Port 9200)]
+    K[Kibana<br/>Port 5601]
+    L[Logstash]
+    EA[ElastAlert2]
+    FB[Filebeat]
+    AB[Auditbeat]
+    PB[Packetbeat]
+    S[Attack Simulation Scripts<br/>Bruteforce / Port Scan / Stress]
+
+    U -->|Open UI| F
+    F -->|REST API /api| B
+    F -->|WebSocket| B
+
+    B -->|Users / Incidents / Alerts| M
+    B -->|Dashboard metrics / search| E
+    EA -->|Webhook alerts| B
+
+    FB -->|Collect logs| L
+    L -->|Parse + ship| E
+    AB -->|System audit events| E
+    PB -->|Network telemetry| E
+    E -->|Visualization| K
+    E -->|Rule matching| EA
+
+    S -->|Generate events| FB
+    S -->|Generate traffic| PB
+    S -->|Exercise APIs| B
+```
+
+### 2. Luồng đăng nhập và cảnh báo realtime
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant F as Frontend
+    participant B as Backend API
+    participant M as MongoDB
+    participant E as Elasticsearch
+    participant EA as ElastAlert2
+    participant WS as Socket.IO
+
+    U->>F: Nhập email + password
+    F->>B: POST /api/auth/login
+    B->>M: Tìm user theo email
+    M-->>B: User document + hashed password
+    B->>B: Verify password + tạo JWT
+    B-->>F: Token + user profile
+    F->>B: Gọi API protected với Bearer token
+    B->>M: Lấy dữ liệu incidents / alerts / profile
+    M-->>B: Business data
+    B-->>F: JSON response
+
+    Note over E,EA: Song song với luồng người dùng
+    E-->>EA: Event/log thỏa rule cảnh báo
+    EA->>B: POST /api/alerts/webhook
+    B->>M: Lưu alert / cập nhật incident
+    B-->>WS: Broadcast alert / incidentCreated
+    WS-->>F: Push realtime notification
+    F-->>U: Hiển thị badge / alert trên dashboard
+```
+
+### Ghi chú nhanh
+- `mongodb:27017` là hostname nội bộ giữa các container trong Docker network.
+- `localhost:27017` là địa chỉ dùng từ máy host hoặc MongoDB Compass.
+- Frontend dùng Nginx proxy `/api` sang backend và nhận realtime qua Socket.IO.
+- MongoDB lưu dữ liệu nghiệp vụ; Elasticsearch lưu log và telemetry để phân tích/cảnh báo.
+
 ## 🎯 Demo và Testing
 
 ### Tạo sự cố giả lập

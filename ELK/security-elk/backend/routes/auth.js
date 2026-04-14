@@ -2,6 +2,7 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { protect, authorize } = require('../middleware/auth');
+const { validateLogin, validateRegister, validateChangePassword } = require('../middleware/validator');
 const logger = require('../utils/logger');
 
 const router = express.Router();
@@ -78,7 +79,7 @@ const generateToken = (id) => {
 // @desc    Đăng ký user mới
 // @route   POST /api/auth/register
 // @access  Public
-router.post('/register', async (req, res, next) => {
+router.post('/register', validateRegister, async (req, res, next) => {
   try {
     const { username, email, password, firstName, lastName, department, role } = req.body;
 
@@ -185,7 +186,7 @@ router.post('/register', async (req, res, next) => {
 // @desc    Đăng nhập user
 // @route   POST /api/auth/login
 // @access  Public
-router.post('/login', async (req, res, next) => {
+router.post('/login', validateLogin, async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
@@ -321,7 +322,7 @@ router.put('/me', protect, async (req, res, next) => {
 // @desc    Đổi password
 // @route   PUT /api/auth/change-password
 // @access  Private
-router.put('/change-password', protect, async (req, res, next) => {
+router.put('/change-password', protect, validateChangePassword, async (req, res, next) => {
   try {
     const { currentPassword, newPassword } = req.body;
 

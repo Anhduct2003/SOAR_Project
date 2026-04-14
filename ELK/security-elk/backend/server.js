@@ -27,50 +27,114 @@ app.set('trust proxy', 1);
 
 const server = http.createServer(app);
 
-// Allow all origins for demo purposes
-const parseAllowedOrigins = () => {
-  return ['*']; // Allow all origins for demo
-};
+// CORS Configuration - Use environment variable or default to localhost
+const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:3000')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
 
-const allowedOrigins = parseAllowedOrigins();
+logger.info(`CORS allowed origins: ${allowedOrigins.join(', ')}`);
 
 const io = socketIo(server, {
   cors: {
-    origin: "*", // Allow all origins for demo
-    methods: ["GET", "POST", "OPTIONS"],
-    credentials: false // Set to false when using wildcard origin
+    origin: allowedOrigins,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    credentials: true,
+    allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization']
   },
   transports: ['websocket', 'polling']
 });
 
-// Middleware bảo mật - Disabled for demo
+// Security Headers with Helmet - Full configuration
 app.use(helmet({
-  contentSecurityPolicy: false, // Disable CSP for demo
-  crossOriginEmbedderPolicy: false
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", 'data:', 'https:'],
+      connectSrc: ["'self'", 'ws:', 'wss:'],
+      fontSrc: ["'self'", 'data:'],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
+      upgradeInsecureRequests: []
+    }
+  },
+  crossOriginEmbedderPolicy: false, // Needed for some frontend features
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  crossOriginOpenerPolicy: true,
+  dnsPrefetchControl: { allow: false },
+  frameguard: { action: 'deny' },
+  hsts: {
+    maxAge: 31536000, // 1 year
+    includeSubDomains: true,
+    preload: true
+  },
+  ieNoOpen: true,
+  noSniff: true,
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  xssFilter: true
 }));
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 phút
-  max: 100, // giới hạn 100 requests per windowMs
-  message: 'Quá nhiều requests từ IP này, vui lòng thử lại sau 15 phút.'
+// Rate limiting - Stricter for auth endpoints
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: {
+    success: false,
+    message: 'Quá nhiều requests từ IP này, vui lòng thử lại sau 15 phút.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false
 });
+
 const authLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000, // 10 phút
-  max: 20,
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // limit each IP to 10 login/register attempts per 15 minutes
+  message: {
+    success: false,
+    message: 'Quá nhiều yêu cầu đăng nhập/tạo tài khoản, thử lại sau 15 phút.'
+  },
   standardHeaders: true,
   legacyHeaders: false,
-  message: 'Quá nhiều yêu cầu đăng nhập/tạo tài khoản, thử lại sau.'
+  skipSuccessfulRequests: true // Don't count successful logins
 });
-app.use('/api/', limiter);
+
+const webhookLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 50, // limit to 50 webhook requests per 5 minutes
+  message: {
+    success: false,
+    message: 'Too many webhook requests'
+  },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+app.use('/api/', generalLimiter);
 app.use('/api/auth/', authLimiter);
+app.use('/api/alerts/webhook', webhookLimiter);
 
 // Middleware
 app.use(compression());
 app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
 app.use(cors({
-  origin: "*", // Allow all origins for demo
-  credentials: false, // Set to false when using wildcard origin
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+
+    const allowed = (process.env.CORS_ORIGINS || 'http://localhost:3000')
+      .split(',')
+      .map(o => o.trim());
+
+    if (allowed.indexOf(origin) !== -1 || allowed.includes('*')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization']
 }));
@@ -160,12 +224,12 @@ app.use('/api/health', healthRoutes);
 // Socket.IO connection handling
 io.on('connection', (socket) => {
   logger.info(`Client connected: ${socket.id}`);
-  
+
   socket.on('join-dashboard', (data) => {
     socket.join('dashboard');
     logger.info(`Client ${socket.id} joined dashboard`);
   });
-  
+
   socket.on('disconnect', () => {
     logger.info(`Client disconnected: ${socket.id}`);
   });
@@ -187,13 +251,13 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/security_
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-.then(() => {
-  logger.info('Kết nối MongoDB thành công');
-})
-.catch((err) => {
-  logger.error('Lỗi kết nối MongoDB:', err);
-  process.exit(1);
-});
+  .then(() => {
+    logger.info('Kết nối MongoDB thành công');
+  })
+  .catch((err) => {
+    logger.error('Lỗi kết nối MongoDB:', err);
+    process.exit(1);
+  });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
