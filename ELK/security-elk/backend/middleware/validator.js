@@ -4,11 +4,10 @@ const Joi = require('joi');
 const validateLogin = (req, res, next) => {
   const schema = Joi.object({
     email: Joi.string()
-      .email()
+      .email({ tlds: { allow: false } })  // Allow emails without TLD for testing
       .required()
       .max(255)
       .trim()
-      .lowercase()
       .messages({
         'string.email': 'Email không hợp lệ',
         'string.empty': 'Email không được để trống',
@@ -26,7 +25,7 @@ const validateLogin = (req, res, next) => {
   });
 
   const { error } = schema.validate(req.body, { abortEarly: false });
-  
+
   if (error) {
     const messages = error.details.map(detail => detail.message);
     return res.status(400).json({
@@ -106,7 +105,7 @@ const validateRegister = (req, res, next) => {
   });
 
   const { error } = schema.validate(req.body, { abortEarly: false });
-  
+
   if (error) {
     const messages = error.details.map(detail => detail.message);
     return res.status(400).json({
@@ -193,7 +192,7 @@ const validateIncident = (req, res, next) => {
   });
 
   const { error } = schema.validate(req.body, { abortEarly: false });
-  
+
   if (error) {
     const messages = error.details.map(detail => detail.message);
     return res.status(400).json({
@@ -227,7 +226,7 @@ const validateChangePassword = (req, res, next) => {
   });
 
   const { error } = schema.validate(req.body, { abortEarly: false });
-  
+
   if (error) {
     const messages = error.details.map(detail => detail.message);
     return res.status(400).json({
