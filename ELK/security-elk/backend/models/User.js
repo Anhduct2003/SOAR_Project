@@ -70,7 +70,7 @@ const userSchema = new mongoose.Schema({
 });
 
 // Virtual field cho full name
-userSchema.virtual('fullName').get(function() {
+userSchema.virtual('fullName').get(function () {
   return `${this.firstName} ${this.lastName}`;
 });
 
@@ -79,13 +79,14 @@ userSchema.index({ email: 1, username: 1 });
 userSchema.index({ role: 1, isActive: 1 });
 
 // Middleware trước khi save - hash password
-userSchema.pre('save', async function(next) {
+userSchema.pre('save', async function (next) {
   // Chỉ hash password nếu nó được thay đổi
   if (!this.isModified('password')) return next();
 
   try {
-    // Hash password với salt rounds = 12
-    const salt = await bcrypt.genSalt(12);
+    // Hash password với salt rounds từ environment variable (default: 12)
+    const saltRounds = parseInt(process.env.BCRYPT_SALT_ROUNDS, 10) || 12;
+    const salt = await bcrypt.genSalt(saltRounds);
     this.password = await bcrypt.hash(this.password, salt);
     next();
   } catch (error) {
@@ -94,7 +95,7 @@ userSchema.pre('save', async function(next) {
 });
 
 // Middleware trước khi save - cập nhật passwordChangedAt
-userSchema.pre('save', function(next) {
+userSchema.pre('save', function (next) {
   if (!this.isModified('password') || this.isNew) return next();
 
   this.passwordChangedAt = Date.now() - 1000;
@@ -102,12 +103,12 @@ userSchema.pre('save', function(next) {
 });
 
 // Method để so sánh password
-userSchema.methods.matchPassword = async function(enteredPassword) {
+userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
 // Method để kiểm tra password có thay đổi sau khi token được tạo
-userSchema.methods.changedPasswordAfter = function(JWTTimestamp) {
+userSchema.methods.changedPasswordAfter = function (JWTTimestamp) {
   if (this.passwordChangedAt) {
     const changedTimestamp = parseInt(
       this.passwordChangedAt.getTime() / 1000,
@@ -119,12 +120,12 @@ userSchema.methods.changedPasswordAfter = function(JWTTimestamp) {
 };
 
 // Static method để tìm user theo email
-userSchema.statics.findByEmail = function(email) {
+userSchema.statics.findByEmail = function (email) {
   return this.findOne({ email: email.toLowerCase() });
 };
 
 // Static method để tìm active users
-userSchema.statics.findActive = function() {
+userSchema.statics.findActive = function () {
   return this.find({ isActive: true });
 };
 

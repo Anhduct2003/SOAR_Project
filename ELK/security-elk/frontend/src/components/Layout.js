@@ -1,27 +1,30 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { NavLink, useNavigate, Outlet, useLocation } from 'react-router-dom';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../contexts/ThemeContext';
+import { useLocalization } from '../contexts/LocalizationContext';
 import { useSocket } from '../contexts/SocketContext';
+import { useTheme } from '../contexts/ThemeContext';
 import {
-  HomeIcon,
-  ShieldExclamationIcon,
-  BellIcon,
-  UsersIcon,
-  Cog6ToothIcon,
   ArrowLeftOnRectangleIcon,
-  SunIcon,
-  MoonIcon,
-  ShieldCheckIcon,
-  ServerIcon,
+  BellIcon,
+  ChevronDownIcon,
   CircleStackIcon,
-  GlobeAltIcon
+  Cog6ToothIcon,
+  GlobeAltIcon,
+  HomeIcon,
+  MoonIcon,
+  ServerIcon,
+  ShieldCheckIcon,
+  ShieldExclamationIcon,
+  SunIcon,
+  UsersIcon
 } from '@heroicons/react/24/outline';
 import './Layout.css';
 
 const NotificationCenter = ({ onViewAll }) => {
   const { alerts: realtimeAlerts } = useSocket();
+  const { formatDateTime, t } = useLocalization();
   const [isOpen, setIsOpen] = useState(false);
   const [apiAlerts, setApiAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -70,12 +73,13 @@ const NotificationCenter = ({ onViewAll }) => {
     [...realtimeAlerts, ...apiAlerts].forEach((item, index) => {
       const key = item.id || item._id || `${item.title || item.message}-${item.createdAt}-${index}`;
       if (!map.has(key)) {
+        const severity = item.severity || 'medium';
         map.set(key, {
           ...item,
           key,
-          displayTitle: item.title || item.message || 'New security event detected',
+          displayTitle: item.title || item.message || t('socket.newIncident'),
           displayTime: item.createdAt || item.timestamp || new Date().toISOString(),
-          displaySeverity: item.severity || 'medium'
+          displaySeverity: severity
         });
       }
     });
@@ -83,7 +87,7 @@ const NotificationCenter = ({ onViewAll }) => {
     return Array.from(map.values())
       .sort((a, b) => new Date(b.displayTime) - new Date(a.displayTime))
       .slice(0, 8);
-  }, [apiAlerts, realtimeAlerts]);
+  }, [apiAlerts, realtimeAlerts, t]);
 
   const unreadCount = notifications.filter(
     (item) => new Date(item.displayTime).getTime() > lastReadAt
@@ -114,7 +118,7 @@ const NotificationCenter = ({ onViewAll }) => {
       <button
         className={`notification-trigger ${isOpen ? 'open' : ''}`}
         onClick={handleToggle}
-        title="System notifications"
+        title={t('layout.notifications.buttonTitle')}
       >
         <BellIcon style={{ width: 20, height: 20 }} />
         {unreadCount > 0 && (
@@ -126,35 +130,35 @@ const NotificationCenter = ({ onViewAll }) => {
         <div className="notification-panel animate-fade-in">
           <div className="notification-panel-header">
             <div>
-              <h3>Notifications</h3>
-              <p>{unreadCount > 0 ? `${unreadCount} new events` : 'Recent system activity'}</p>
+              <h3>{t('layout.notifications.title')}</h3>
+              <p>
+                {unreadCount > 0
+                  ? t('layout.notifications.newEvents', { count: unreadCount })
+                  : t('layout.notifications.recentActivity')}
+              </p>
             </div>
             <button className="notification-link" onClick={handleViewAll}>
-              View all
+              {t('common.actions.viewAll')}
             </button>
           </div>
 
           <div className="notification-list">
             {loading ? (
-              <div className="notification-empty">Loading alerts...</div>
+              <div className="notification-empty">{t('layout.notifications.loading')}</div>
             ) : notifications.length === 0 ? (
-              <div className="notification-empty">No alerts at the moment.</div>
+              <div className="notification-empty">{t('layout.notifications.empty')}</div>
             ) : (
               notifications.map((item) => (
-                <button
-                  key={item.key}
-                  className="notification-item"
-                  onClick={handleViewAll}
-                >
+                <button key={item.key} className="notification-item" onClick={handleViewAll}>
                   <div className={`notification-severity severity-${item.displaySeverity}`} />
                   <div className="notification-copy">
                     <div className="notification-item-top">
                       <span className="notification-title">{item.displayTitle}</span>
-                      <span className={`badge badge-${item.displaySeverity}`}>{item.displaySeverity}</span>
+                      <span className={`badge badge-${item.displaySeverity}`}>
+                        {t(`common.severity.${item.displaySeverity}`)}
+                      </span>
                     </div>
-                    <span className="notification-time">
-                      {new Date(item.displayTime).toLocaleString()}
-                    </span>
+                    <span className="notification-time">{formatDateTime(item.displayTime)}</span>
                   </div>
                 </button>
               ))
@@ -167,26 +171,27 @@ const NotificationCenter = ({ onViewAll }) => {
 };
 
 const SystemHealth = () => {
+  const { t } = useLocalization();
   const [health, setHealth] = useState({
     backend: 'loading',
     mongodb: 'loading',
     elasticsearch: 'loading'
   });
 
-  const checkHealth = async () => {
-    try {
-      const res = await axios.get('/api/health/status');
-      setHealth(res.data.data);
-    } catch (error) {
-      setHealth({
-        backend: 'disconnected',
-        mongodb: 'disconnected',
-        elasticsearch: 'disconnected'
-      });
-    }
-  };
-
   useEffect(() => {
+    const checkHealth = async () => {
+      try {
+        const res = await axios.get('/api/health/status');
+        setHealth(res.data.data);
+      } catch (error) {
+        setHealth({
+          backend: 'disconnected',
+          mongodb: 'disconnected',
+          elasticsearch: 'disconnected'
+        });
+      }
+    };
+
     checkHealth();
     const timer = setInterval(checkHealth, 30000);
     return () => clearInterval(timer);
@@ -218,6 +223,7 @@ const SystemHealth = () => {
         borderRight: '1px solid var(--border-color)',
         marginRight: '1rem'
       }}
+      title={t('common.status.systemHealth')}
     >
       <div
         style={{
@@ -227,7 +233,7 @@ const SystemHealth = () => {
           fontSize: '0.75rem',
           color: 'var(--text-secondary)'
         }}
-        title="Backend API"
+        title={t('layout.systemHealth.backend')}
       >
         <ServerIcon style={{ width: 14 }} />
         <StatusDot status={health.backend} />
@@ -240,7 +246,7 @@ const SystemHealth = () => {
           fontSize: '0.75rem',
           color: 'var(--text-secondary)'
         }}
-        title="MongoDB"
+        title={t('layout.systemHealth.mongodb')}
       >
         <CircleStackIcon style={{ width: 14 }} />
         <StatusDot status={health.mongodb} />
@@ -253,7 +259,7 @@ const SystemHealth = () => {
           fontSize: '0.75rem',
           color: 'var(--text-secondary)'
         }}
-        title="Elasticsearch"
+        title={t('layout.systemHealth.elasticsearch')}
       >
         <GlobeAltIcon style={{ width: 14 }} />
         <StatusDot status={health.elasticsearch} />
@@ -262,8 +268,63 @@ const SystemHealth = () => {
   );
 };
 
+const LanguageSwitcher = () => {
+  const { locale, localeLabels, locales, setLocale, t } = useLocalization();
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSelectLocale = (nextLocale) => {
+    setLocale(nextLocale);
+    setIsOpen(false);
+  };
+
+  return (
+    <div className="language-dropdown" ref={dropdownRef}>
+      <button
+        type="button"
+        className={`language-trigger ${isOpen ? 'open' : ''}`}
+        onClick={() => setIsOpen((prev) => !prev)}
+        title={t('layout.controls.language')}
+        aria-label={t('layout.controls.language')}
+        aria-expanded={isOpen}
+      >
+        <GlobeAltIcon style={{ width: 18, height: 18 }} />
+        <span>{localeLabels[locale]}</span>
+        <ChevronDownIcon style={{ width: 16, height: 16 }} />
+      </button>
+
+      {isOpen && (
+        <div className="language-menu animate-fade-in">
+          {locales.map((supportedLocale) => (
+            <button
+              key={supportedLocale}
+              type="button"
+              className={`language-menu-item ${locale === supportedLocale ? 'active' : ''}`}
+              onClick={() => handleSelectLocale(supportedLocale)}
+            >
+              {localeLabels[supportedLocale]}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Layout = () => {
   const { logout, user } = useAuth();
+  const { t } = useLocalization();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -274,24 +335,29 @@ const Layout = () => {
     user?.username ||
     'Admin';
 
-  const displayRole = user?.role || 'Security Analyst';
+  const displayRole = user?.role
+    ? t(`common.roles.${user.role}`)
+    : t('common.roles.analyst');
+
+  const navItems = useMemo(
+    () => [
+      { key: 'dashboard', path: '/dashboard', icon: HomeIcon },
+      { key: 'incidents', path: '/incidents', icon: ShieldExclamationIcon },
+      { key: 'alerts', path: '/alerts', icon: BellIcon },
+      { key: 'users', path: '/users', icon: UsersIcon },
+      { key: 'settings', path: '/settings', icon: Cog6ToothIcon }
+    ],
+    []
+  );
+
+  const getPageTitle = () => {
+    const currentItem = navItems.find((item) => item.path === location.pathname);
+    return currentItem ? t(`layout.pages.${currentItem.key}`) : t('layout.pages.default');
+  };
 
   const handleLogout = () => {
     logout();
     navigate('/login');
-  };
-
-  const navItems = [
-    { name: 'Dashboard', path: '/dashboard', icon: HomeIcon },
-    { name: 'Incidents', path: '/incidents', icon: ShieldExclamationIcon },
-    { name: 'Alerts', path: '/alerts', icon: BellIcon },
-    { name: 'Users', path: '/users', icon: UsersIcon },
-    { name: 'Settings', path: '/settings', icon: Cog6ToothIcon }
-  ];
-
-  const getPageTitle = () => {
-    const item = navItems.find((navItem) => navItem.path === location.pathname);
-    return item ? item.name : 'Security Dashboard';
   };
 
   return (
@@ -312,7 +378,7 @@ const Layout = () => {
               className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
             >
               <item.icon />
-              <span>{item.name}</span>
+              <span>{t(`layout.pages.${item.key}`)}</span>
             </NavLink>
           ))}
 
@@ -328,7 +394,7 @@ const Layout = () => {
             }}
           >
             <ArrowLeftOnRectangleIcon />
-            <span>Dang xuat</span>
+            <span>{t('common.actions.signOut')}</span>
           </button>
         </nav>
       </aside>
@@ -339,17 +405,30 @@ const Layout = () => {
 
           <div className="nav-right">
             <SystemHealth />
-            <NotificationCenter onViewAll={() => navigate('/alerts')} />
 
-            <button className="theme-toggle" onClick={toggleTheme} title="Doi giao dien">
-              {theme === 'light' ? <MoonIcon style={{ width: 20 }} /> : <SunIcon style={{ width: 20 }} />}
+            <LanguageSwitcher />
+
+            <button
+              className="theme-toggle"
+              onClick={toggleTheme}
+              title={t('layout.controls.toggleTheme')}
+            >
+              {theme === 'light' ? (
+                <MoonIcon style={{ width: 20 }} />
+              ) : (
+                <SunIcon style={{ width: 20 }} />
+              )}
             </button>
+
+            <NotificationCenter onViewAll={() => navigate('/alerts')} />
 
             <div className="user-profile">
               <div className="user-avatar">{displayName.charAt(0).toUpperCase()}</div>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{displayName}</span>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{displayRole}</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  {displayRole}
+                </span>
               </div>
             </div>
           </div>

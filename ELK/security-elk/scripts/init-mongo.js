@@ -19,8 +19,10 @@ db.incidents.createIndex({ "severity": 1 });
 db.incidents.createIndex({ "status": 1 });
 db.incidents.createIndex({ "category": 1 });
 db.incidents.createIndex({ "detectedAt": -1 });
+db.incidents.createIndex({ "createdAt": -1 });
 db.incidents.createIndex({ "assignedTo": 1 });
 db.incidents.createIndex({ "createdBy": 1 });
+db.incidents.createIndex({ "title": "text", "description": "text", "tags": "text" });
 
 db.alerts.createIndex({ "severity": 1 });
 db.alerts.createIndex({ "status": 1 });

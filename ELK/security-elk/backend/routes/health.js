@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 const { protect } = require('../middleware/auth');
+const { healthCheck } = require('../db');
 const axios = require('axios');
 
 /**
@@ -30,6 +31,38 @@ router.get('/status', protect, async (req, res) => {
   }
 
   res.json({ success: true, data: status });
+});
+
+/**
+ * @swagger
+ * /api/health/db:
+ *   get:
+ *     tags: [Monitoring]
+ *     summary: Check MongoDB connection health
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get('/db', protect, async (req, res) => {
+  const dbHealth = await healthCheck();
+
+  if (dbHealth.status === 'connected') {
+    res.json({
+      success: true,
+      data: {
+        status: dbHealth.status,
+        host: dbHealth.host,
+        database: dbHealth.name,
+      },
+    });
+  } else {
+    res.status(503).json({
+      success: false,
+      data: {
+        status: dbHealth.status,
+        error: dbHealth.error,
+      },
+    });
+  }
 });
 
 module.exports = router;

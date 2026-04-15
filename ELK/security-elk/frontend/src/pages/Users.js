@@ -1,13 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-
-const roleOptions = [
-  { label: 'Admin', value: 'admin' },
-  { label: 'Analyst', value: 'analyst' },
-  { label: 'Viewer', value: 'viewer' }
-];
+import { useLocalization } from '../contexts/LocalizationContext';
 
 const Users = () => {
+  const { localizeApiMessage, t } = useLocalization();
   const [users, setUsers] = useState([]);
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
@@ -17,22 +13,35 @@ const Users = () => {
   const [roleFilter, setRoleFilter] = useState('');
   const [activeFilter, setActiveFilter] = useState('');
 
+  const roleOptions = useMemo(
+    () => [
+      { label: t('common.roles.admin'), value: 'admin' },
+      { label: t('common.roles.analyst'), value: 'analyst' },
+      { label: t('common.roles.viewer'), value: 'viewer' }
+    ],
+    [t]
+  );
+
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
       const params = { page, limit };
-      if (roleFilter) params.role = roleFilter;
-      if (activeFilter) params.isActive = activeFilter;
+      if (roleFilter) {
+        params.role = roleFilter;
+      }
+      if (activeFilter) {
+        params.isActive = activeFilter;
+      }
       const res = await axios.get('/api/auth/users', { params });
       setUsers(res.data.data || []);
       setTotalPages(res.data.pagination?.pages || 1);
-      setError(null);
-    } catch (e) {
-      setError(e.response?.data?.message || 'Không thể tải danh sách người dùng');
+    } catch (err) {
+      setError(localizeApiMessage(err?.response?.data?.message || err?.message, 'common.errors.usersLoad'));
     } finally {
       setLoading(false);
     }
-  }, [page, limit, roleFilter, activeFilter]);
+  }, [activeFilter, limit, localizeApiMessage, page, roleFilter]);
 
   useEffect(() => {
     fetchUsers();
@@ -42,34 +51,34 @@ const Users = () => {
     try {
       await axios.put(`/api/auth/users/${id}`, updates);
       fetchUsers();
-    } catch (e) {
-      alert(e.response?.data?.message || 'Cập nhật thất bại');
+    } catch (err) {
+      window.alert(localizeApiMessage(err?.response?.data?.message || err?.message, 'common.errors.updateFailed'));
     }
   };
 
-  const rows = useMemo(() => users, [users]);
-
   return (
     <div>
-      <h2>Người dùng</h2>
+      <h2>{t('users.title')}</h2>
       <div className="card" style={{ marginBottom: 12, padding: 12 }}>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)}>
-            <option value="">Tất cả vai trò</option>
-            {roleOptions.map(r => (
-              <option key={r.value} value={r.value}>{r.label}</option>
+          <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
+            <option value="">{t('common.labels.allRoles')}</option>
+            {roleOptions.map((role) => (
+              <option key={role.value} value={role.value}>
+                {role.label}
+              </option>
             ))}
           </select>
-          <select value={activeFilter} onChange={e => setActiveFilter(e.target.value)}>
-            <option value="">Trạng thái</option>
-            <option value="true">Đang hoạt động</option>
-            <option value="false">Bị khóa</option>
+          <select value={activeFilter} onChange={(event) => setActiveFilter(event.target.value)}>
+            <option value="">{t('common.labels.status')}</option>
+            <option value="true">{t('users.active')}</option>
+            <option value="false">{t('users.locked')}</option>
           </select>
-          <button onClick={() => { setPage(1); fetchUsers(); }}>Lọc</button>
+          <button onClick={() => { setPage(1); fetchUsers(); }}>{t('common.actions.filter')}</button>
         </div>
       </div>
 
-      {loading && <div className="card">Đang tải...</div>}
+      {loading && <div className="card">{t('users.loading')}</div>}
       {error && <div className="card" style={{ color: 'red' }}>{error}</div>}
 
       {!loading && !error && (
@@ -77,37 +86,49 @@ const Users = () => {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ textAlign: 'left' }}>
-                <th style={{ padding: 8 }}>Email</th>
-                <th style={{ padding: 8 }}>Tên</th>
-                <th style={{ padding: 8 }}>Role</th>
-                <th style={{ padding: 8 }}>Phòng ban</th>
-                <th style={{ padding: 8 }}>Trạng thái</th>
-                <th style={{ padding: 8 }}>Thao tác</th>
+                <th style={{ padding: 8 }}>{t('common.table.email')}</th>
+                <th style={{ padding: 8 }}>{t('common.table.name')}</th>
+                <th style={{ padding: 8 }}>{t('common.table.role')}</th>
+                <th style={{ padding: 8 }}>{t('common.table.department')}</th>
+                <th style={{ padding: 8 }}>{t('common.table.status')}</th>
+                <th style={{ padding: 8 }}>{t('common.table.actions')}</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map(u => (
-                <tr key={u.id} style={{ borderTop: '1px solid #eee' }}>
-                  <td style={{ padding: 8 }}>{u.email}</td>
-                  <td style={{ padding: 8 }}>{u.firstName} {u.lastName}</td>
+              {users.map((user) => (
+                <tr key={user.id} style={{ borderTop: '1px solid #eee' }}>
+                  <td style={{ padding: 8 }}>{user.email}</td>
+                  <td style={{ padding: 8 }}>{[user.firstName, user.lastName].filter(Boolean).join(' ') || user.username}</td>
                   <td style={{ padding: 8 }}>
-                    <select value={u.role} onChange={e => onUpdateUser(u.id, { role: e.target.value })}>
-                      {roleOptions.map(r => (
-                        <option key={r.value} value={r.value}>{r.label}</option>
+                    <select value={user.role} onChange={(event) => onUpdateUser(user.id, { role: event.target.value })}>
+                      {roleOptions.map((role) => (
+                        <option key={role.value} value={role.value}>
+                          {role.label}
+                        </option>
                       ))}
                     </select>
                   </td>
-                  <td style={{ padding: 8 }}>{u.department || '-'}</td>
+                  <td style={{ padding: 8 }}>{user.department || t('common.messages.noDepartment')}</td>
                   <td style={{ padding: 8 }}>
-                    <input
-                      type="checkbox"
-                      checked={u.isActive}
-                      onChange={e => onUpdateUser(u.id, { isActive: e.target.checked })}
-                    />
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                      <input
+                        type="checkbox"
+                        checked={user.isActive}
+                        onChange={(event) => onUpdateUser(user.id, { isActive: event.target.checked })}
+                      />
+                      <span>{user.isActive ? t('users.active') : t('users.locked')}</span>
+                    </label>
                   </td>
                   <td style={{ padding: 8 }}>
-                    <button onClick={() => onUpdateUser(u.id, { department: prompt('Nhập phòng ban mới', u.department || '') })}>
-                      Sửa phòng ban
+                    <button
+                      onClick={() => {
+                        const department = window.prompt(t('users.editDepartmentPrompt'), user.department || '');
+                        if (department !== null) {
+                          onUpdateUser(user.id, { department });
+                        }
+                      }}
+                    >
+                      {t('common.actions.editDepartment')}
                     </button>
                   </td>
                 </tr>
@@ -115,9 +136,13 @@ const Users = () => {
             </tbody>
           </table>
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: 12 }}>
-            <button disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Trang trước</button>
-            <span>Trang {page}/{totalPages}</span>
-            <button disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Trang sau</button>
+            <button disabled={page <= 1} onClick={() => setPage((currentPage) => currentPage - 1)}>
+              {t('users.previousPage')}
+            </button>
+            <span>{t('common.messages.pageIndicator', { page, total: totalPages })}</span>
+            <button disabled={page >= totalPages} onClick={() => setPage((currentPage) => currentPage + 1)}>
+              {t('users.nextPage')}
+            </button>
           </div>
         </div>
       )}

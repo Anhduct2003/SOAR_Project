@@ -88,7 +88,7 @@ router.post('/register', validateRegister, async (req, res, next) => {
     if (userExists) {
       return res.status(400).json({
         success: false,
-        message: 'User đã tồn tại'
+        message: 'User already exists'
       });
     }
 
@@ -194,7 +194,7 @@ router.post('/login', validateLogin, async (req, res, next) => {
     if (!email || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Vui lòng cung cấp email và password'
+        message: 'Please provide email and password'
       });
     }
 
@@ -203,7 +203,7 @@ router.post('/login', validateLogin, async (req, res, next) => {
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Thông tin đăng nhập không hợp lệ'
+        message: 'Invalid credentials'
       });
     }
 
@@ -214,7 +214,7 @@ router.post('/login', validateLogin, async (req, res, next) => {
       logger.warn(`Failed login attempt for user ${email} from IP ${clientIp}`);
       return res.status(401).json({
         success: false,
-        message: 'Thông tin đăng nhập không hợp lệ'
+        message: 'Invalid credentials'
       });
     }
 
@@ -222,7 +222,7 @@ router.post('/login', validateLogin, async (req, res, next) => {
     if (!user.isActive) {
       return res.status(401).json({
         success: false,
-        message: 'Tài khoản đã bị vô hiệu hóa'
+        message: 'Account has been disabled'
       });
     }
 
@@ -329,7 +329,7 @@ router.put('/change-password', protect, validateChangePassword, async (req, res,
     if (!currentPassword || !newPassword) {
       return res.status(400).json({
         success: false,
-        message: 'Vui lòng cung cấp password hiện tại và password mới'
+        message: 'Please provide current password and new password'
       });
     }
 
@@ -340,7 +340,7 @@ router.put('/change-password', protect, validateChangePassword, async (req, res,
     if (!isMatch) {
       return res.status(401).json({
         success: false,
-        message: 'Password hiện tại không đúng'
+        message: 'Current password is incorrect'
       });
     }
 

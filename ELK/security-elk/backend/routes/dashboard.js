@@ -67,51 +67,48 @@ const Incident = require('../models/Incident');
 // Get dashboard statistics
 router.get('/stats', protect, async (req, res) => {
   try {
-    // Get total incidents count
-    const totalIncidents = await Incident.countDocuments();
-    
-    // Get incidents by status
-    const openIncidents = await Incident.countDocuments({ status: 'open' });
-    const investigatingIncidents = await Incident.countDocuments({ status: 'investigating' });
-    const containedIncidents = await Incident.countDocuments({ status: 'contained' });
-    const resolvedIncidents = await Incident.countDocuments({ status: 'resolved' });
-    const closedIncidents = await Incident.countDocuments({ status: 'closed' });
-    
-    // Get incidents by severity
-    const lowSeverity = await Incident.countDocuments({ severity: 'low' });
-    const mediumSeverity = await Incident.countDocuments({ severity: 'medium' });
-    const highSeverity = await Incident.countDocuments({ severity: 'high' });
-    const criticalSeverity = await Incident.countDocuments({ severity: 'critical' });
-    
-    // Get incidents by category
-    const categoryStats = await Incident.aggregate([
-      {
-        $group: {
-          _id: '$category',
-          count: { $sum: 1 }
-        }
-      }
-    ]);
-    
-    // Get recent incidents (last 24 hours)
     const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const recentIncidents = await Incident.countDocuments({
-      createdAt: { $gte: last24Hours }
-    });
-    
-    // Get incidents created today
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const todayIncidents = await Incident.countDocuments({
-      createdAt: { $gte: today }
-    });
-    
-    // Calculate resolution time average for resolved incidents
-    const resolvedIncidentsWithDates = await Incident.find({
-      status: 'resolved',
-      resolvedAt: { $exists: true }
-    }).select('createdAt resolvedAt');
-    
+
+    // Single aggregation pipeline replaces 9+ separate countDocuments() calls
+    const [statsResult, resolvedIncidentsWithDates] = await Promise.all([
+      Incident.aggregate([
+        {
+          $group: {
+            _id: null,
+            total: { $sum: 1 },
+            open: { $sum: { $cond: [{ $eq: ['$status', 'open'] }, 1, 0] } },
+            investigating: { $sum: { $cond: [{ $eq: ['$status', 'investigating'] }, 1, 0] } },
+            contained: { $sum: { $cond: [{ $eq: ['$status', 'contained'] }, 1, 0] } },
+            resolved: { $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] } },
+            closed: { $sum: { $cond: [{ $eq: ['$status', 'closed'] }, 1, 0] } },
+            low: { $sum: { $cond: [{ $eq: ['$severity', 'low'] }, 1, 0] } },
+            medium: { $sum: { $cond: [{ $eq: ['$severity', 'medium'] }, 1, 0] } },
+            high: { $sum: { $cond: [{ $eq: ['$severity', 'high'] }, 1, 0] } },
+            critical: { $sum: { $cond: [{ $eq: ['$severity', 'critical'] }, 1, 0] } },
+            last24Hours: { $sum: { $cond: [{ $gte: ['$createdAt', last24Hours] }, 1, 0] } },
+            today: { $sum: { $cond: [{ $gte: ['$createdAt', today] }, 1, 0] } },
+          }
+        }
+      ]),
+      // Resolution time calculation (separate query since it needs date arithmetic)
+      Incident.find({ status: 'resolved', resolvedAt: { $exists: true } })
+        .select('createdAt resolvedAt')
+        .lean(),
+    ]);
+
+    const overview = statsResult[0] || {
+      total: 0, open: 0, investigating: 0, contained: 0,
+      resolved: 0, closed: 0, low: 0, medium: 0, high: 0,
+      critical: 0, last24Hours: 0, today: 0,
+    };
+
+    // Category stats (separate aggregation since it needs different grouping)
+    const categoryStats = await Incident.aggregate([
+      { $group: { _id: '$category', count: { $sum: 1 } } }
+    ]);
+
     let avgResolutionTime = 0;
     if (resolvedIncidentsWithDates.length > 0) {
       const totalResolutionTime = resolvedIncidentsWithDates.reduce((sum, incident) => {
@@ -119,46 +116,45 @@ router.get('/stats', protect, async (req, res) => {
       }, 0);
       avgResolutionTime = Math.round(totalResolutionTime / resolvedIncidentsWithDates.length / (1000 * 60 * 60)); // hours
     }
-    
+
     const stats = {
       overview: {
-        totalIncidents,
-        openIncidents,
-        investigatingIncidents,
-        containedIncidents,
-        resolvedIncidents,
-        closedIncidents,
-        recentIncidents,
-        todayIncidents,
-        avgResolutionTime
+        totalIncidents: overview.total,
+        openIncidents: overview.open,
+        investigatingIncidents: overview.investigating,
+        containedIncidents: overview.contained,
+        resolvedIncidents: overview.resolved,
+        closedIncidents: overview.closed,
+        recentIncidents: overview.last24Hours,
+        todayIncidents: overview.today,
+        avgResolutionTime,
       },
       severity: {
-        low: lowSeverity,
-        medium: mediumSeverity,
-        high: highSeverity,
-        critical: criticalSeverity
+        low: overview.low,
+        medium: overview.medium,
+        high: overview.high,
+        critical: overview.critical,
       },
       categories: categoryStats.reduce((acc, item) => {
         acc[item._id] = item.count;
         return acc;
       }, {}),
       trends: {
-        last24Hours: recentIncidents,
-        today: todayIncidents
-      }
+        last24Hours: overview.last24Hours,
+        today: overview.today,
+      },
     };
-    
+
     res.json({
       success: true,
-      data: stats
+      data: stats,
     });
-    
   } catch (error) {
     console.error('Error fetching dashboard stats:', error);
     res.status(500).json({
       success: false,
       message: 'Lỗi khi tải thống kê dashboard',
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -253,18 +249,19 @@ router.get('/stats', protect, async (req, res) => {
 router.get('/recent-incidents', protect, async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
-    
+
     const recentIncidents = await Incident.find()
       .sort({ createdAt: -1 })
       .limit(limit)
       .select('title description severity status category createdAt affectedSystems')
-      .populate('createdBy', 'name email');
-    
+      .populate('createdBy', 'name email')
+      .lean();
+
     res.json({
       success: true,
       data: recentIncidents
     });
-    
+
   } catch (error) {
     console.error('Error fetching recent incidents:', error);
     res.status(500).json({

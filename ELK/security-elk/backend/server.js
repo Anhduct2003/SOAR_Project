@@ -13,6 +13,7 @@ const socketIo = require('socket.io');
 require('dotenv').config();
 
 const logger = require('./utils/logger');
+const { connectDB, disconnectDB } = require('./db');
 const errorHandler = require('./middleware/errorHandler');
 const authRoutes = require('./routes/auth');
 const incidentRoutes = require('./routes/incidents');
@@ -247,32 +248,24 @@ app.use('*', (req, res) => {
 });
 
 // Kết nối MongoDB
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/security_incidents', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-  .then(() => {
-    logger.info('Kết nối MongoDB thành công');
-  })
-  .catch((err) => {
-    logger.error('Lỗi kết nối MongoDB:', err);
-    process.exit(1);
-  });
+connectDB();
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   logger.info('SIGTERM received, shutting down gracefully');
-  server.close(() => {
+  server.close(async () => {
     logger.info('Process terminated');
-    mongoose.connection.close();
+    await disconnectDB();
+    process.exit(0);
   });
 });
 
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
   logger.info('SIGINT received, shutting down gracefully');
-  server.close(() => {
+  server.close(async () => {
     logger.info('Process terminated');
-    mongoose.connection.close();
+    await disconnectDB();
+    process.exit(0);
   });
 });
 

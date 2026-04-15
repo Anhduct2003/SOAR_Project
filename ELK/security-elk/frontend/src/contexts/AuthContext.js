@@ -1,13 +1,10 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useReducer } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { useLocalization } from './LocalizationContext';
 
 const AuthContext = createContext();
 
-const getErrorMessage = (error, fallbackMessage) =>
-  error.response?.data?.message || error.response?.data?.error || fallbackMessage;
-
-// Initial state
 const initialState = {
   user: null,
   token: localStorage.getItem('token'),
@@ -16,7 +13,6 @@ const initialState = {
   error: null
 };
 
-// Action types
 const AUTH_ACTIONS = {
   LOGIN_SUCCESS: 'LOGIN_SUCCESS',
   LOGIN_FAIL: 'LOGIN_FAIL',
@@ -27,7 +23,6 @@ const AUTH_ACTIONS = {
   SET_LOADING: 'SET_LOADING'
 };
 
-// Reducer
 const authReducer = (state, action) => {
   switch (action.type) {
     case AUTH_ACTIONS.LOGIN_SUCCESS:
@@ -80,29 +75,33 @@ const authReducer = (state, action) => {
   }
 };
 
-// Auth Provider Component
 export const AuthProvider = ({ children }) => {
+  const { localizeApiMessage, t } = useLocalization();
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  const setAuthToken = (token) => {
+  const setAuthToken = useCallback((token) => {
     if (token) {
       axios.defaults.headers.common.Authorization = `Bearer ${token}`;
     } else {
       delete axios.defaults.headers.common.Authorization;
     }
-  };
+  }, []);
 
-  const handleAuthFailure = (error, fallbackMessage) => {
-    const message = getErrorMessage(error, fallbackMessage);
+  const getLocalizedError = useCallback((error, fallbackKey) => {
+    const rawMessage = error?.response?.data?.message || error?.response?.data?.error || error?.message;
+    return localizeApiMessage(rawMessage, fallbackKey);
+  }, [localizeApiMessage]);
+
+  const handleAuthFailure = useCallback((error, fallbackKey) => {
+    const message = getLocalizedError(error, fallbackKey);
     setAuthToken(null);
     dispatch({
       type: AUTH_ACTIONS.AUTH_ERROR,
       payload: message
     });
     return message;
-  };
+  }, [getLocalizedError, setAuthToken]);
 
-  // Load user
   const loadUser = async () => {
     try {
       if (state.token) {
@@ -116,11 +115,10 @@ export const AuthProvider = ({ children }) => {
         dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
       }
     } catch (error) {
-      handleAuthFailure(error, 'Loi xac thuc');
+      handleAuthFailure(error, 'common.errors.auth');
     }
   };
 
-  // Login user
   const login = async (email, password) => {
     try {
       dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true });
@@ -136,10 +134,10 @@ export const AuthProvider = ({ children }) => {
         payload: res.data
       });
 
-      toast.success('Dang nhap thanh cong!');
+      toast.success(t('auth.loginSuccess'));
       return { success: true };
     } catch (error) {
-      const message = getErrorMessage(error, 'Dang nhap that bai');
+      const message = getLocalizedError(error, 'auth.loginFailed');
       setAuthToken(null);
       dispatch({
         type: AUTH_ACTIONS.LOGIN_FAIL,
@@ -150,7 +148,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Register user
   const register = async (userData) => {
     try {
       dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true });
@@ -162,10 +159,10 @@ export const AuthProvider = ({ children }) => {
         payload: res.data
       });
 
-      toast.success('Dang ky thanh cong!');
+      toast.success(t('auth.registerSuccess'));
       return { success: true };
     } catch (error) {
-      const message = getErrorMessage(error, 'Dang ky that bai');
+      const message = getLocalizedError(error, 'auth.registerFailed');
       dispatch({
         type: AUTH_ACTIONS.LOGIN_FAIL,
         payload: message
@@ -175,14 +172,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Logout user
   const logout = () => {
     setAuthToken(null);
-    dispatch({ type: AUTH_ACTIONS.LOGOUT });
-    toast.success('Da dang xuat');
+    dispatch({ type: AUTH_ACTIONS.LOGOUT, payload: null });
+    toast.success(t('auth.logoutSuccess'));
   };
 
-  // Update user profile
   const updateProfile = async (userData) => {
     try {
       const res = await axios.put('/api/auth/me', userData);
@@ -190,26 +185,25 @@ export const AuthProvider = ({ children }) => {
         type: AUTH_ACTIONS.USER_LOADED,
         payload: res.data.user
       });
-      toast.success('Cap nhat thong tin thanh cong!');
+      toast.success(t('auth.profileUpdateSuccess'));
       return { success: true };
     } catch (error) {
-      const message = getErrorMessage(error, 'Cap nhat that bai');
+      const message = getLocalizedError(error, 'auth.profileUpdateFailed');
       toast.error(message);
       return { success: false, error: message };
     }
   };
 
-  // Change password
   const changePassword = async (currentPassword, newPassword) => {
     try {
       await axios.put('/api/auth/change-password', {
         currentPassword,
         newPassword
       });
-      toast.success('Doi mat khau thanh cong!');
+      toast.success(t('auth.passwordChangeSuccess'));
       return { success: true };
     } catch (error) {
-      const message = getErrorMessage(error, 'Doi mat khau that bai');
+      const message = getLocalizedError(error, 'auth.passwordChangeFailed');
       toast.error(message);
       return { success: false, error: message };
     }
@@ -233,16 +227,16 @@ export const AuthProvider = ({ children }) => {
           dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: false });
         }
       } catch (error) {
-        handleAuthFailure(error, 'Loi xac thuc');
+        handleAuthFailure(error, 'common.errors.auth');
       }
     };
 
     initAuth();
-  }, [state.token]);
+  }, [handleAuthFailure, setAuthToken, state.token]);
 
   useEffect(() => {
     setAuthToken(state.token);
-  }, [state.token]);
+  }, [setAuthToken, state.token]);
 
   const value = {
     user: state.user,
@@ -259,14 +253,9 @@ export const AuthProvider = ({ children }) => {
     loadUser
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// Custom hook to use auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
