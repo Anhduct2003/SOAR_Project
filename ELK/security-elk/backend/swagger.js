@@ -106,7 +106,19 @@ Authorization: Bearer <your-jwt-token>
             department: {
               type: 'string',
               maxLength: 100,
-              description: 'Department'
+              description: 'Legacy department display name'
+            },
+            departmentId: {
+              type: 'string',
+              nullable: true,
+              description: 'Canonical department reference id'
+            },
+            departmentDetails: {
+              allOf: [
+                { $ref: '#/components/schemas/DepartmentSummary' }
+              ],
+              nullable: true,
+              description: 'Resolved department reference details'
             },
             isActive: {
               type: 'boolean',
@@ -122,6 +134,90 @@ Authorization: Bearer <your-jwt-token>
               type: 'string',
               format: 'date-time',
               description: 'Account creation timestamp'
+            }
+          }
+        },
+        DepartmentSummary: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'string',
+              description: 'Department identifier'
+            },
+            name: {
+              type: 'string',
+              description: 'Department name'
+            },
+            code: {
+              type: 'string',
+              description: 'Normalized department code'
+            },
+            isActive: {
+              type: 'boolean',
+              description: 'Department active status'
+            }
+          }
+        },
+        Department: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'string',
+              description: 'Department identifier'
+            },
+            name: {
+              type: 'string',
+              description: 'Department name'
+            },
+            code: {
+              type: 'string',
+              description: 'Normalized department code'
+            },
+            description: {
+              type: 'string',
+              description: 'Department description'
+            },
+            manager: {
+              type: 'object',
+              nullable: true,
+              properties: {
+                id: {
+                  type: 'string'
+                },
+                firstName: {
+                  type: 'string'
+                },
+                lastName: {
+                  type: 'string'
+                },
+                email: {
+                  type: 'string',
+                  format: 'email'
+                }
+              }
+            },
+            parentDepartment: {
+              allOf: [
+                { $ref: '#/components/schemas/DepartmentSummary' }
+              ],
+              nullable: true,
+              description: 'Parent department summary'
+            },
+            isActive: {
+              type: 'boolean',
+              description: 'Department active status'
+            },
+            sortOrder: {
+              type: 'integer',
+              description: 'Sort order for admin lists'
+            },
+            createdAt: {
+              type: 'string',
+              format: 'date-time'
+            },
+            updatedAt: {
+              type: 'string',
+              format: 'date-time'
             }
           }
         },
@@ -354,6 +450,10 @@ Authorization: Bearer <your-jwt-token>
       {
         name: 'Users',
         description: 'User management (Admin only)'
+      },
+      {
+        name: 'Departments',
+        description: 'Department management (Admin only)'
       },
       {
         name: 'Incidents',

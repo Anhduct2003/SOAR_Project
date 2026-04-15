@@ -1,410 +1,272 @@
 # Security Incident Response API Documentation
 
-## 🚀 **API Overview**
-Base URL: `http://<SERVER_IP>:5001`
-Authentication: Bearer JWT Token
+Base URL: `http://<SERVER_IP>:5001`  
+Authentication: `Authorization: Bearer <JWT_TOKEN>`
 
----
+## Authentication
 
-## 🔐 **AUTHENTICATION APIs**
+### `POST /api/auth/register`
+Creates a new user and returns a token.
 
-### **POST** `/api/auth/register` - Đăng ký user mới
 ```json
-Request Body:
 {
   "username": "analyst01",
-  "email": "analyst@company.com", 
-  "password": "securepass123",
+  "email": "analyst@company.com",
+  "password": "SecurePass123!",
   "firstName": "John",
   "lastName": "Doe",
   "department": "IT Security",
+  "departmentId": "69df3b3fd7d1b53419bd0764",
   "role": "analyst"
 }
-
-Response (201):
-{
-  "success": true,
-  "token": "eyJhbGciOiJIUzI1NiIs...",
-  "user": {
-    "id": "60b8d8f8e1b2c1234567890a",
-    "username": "analyst01",
-    "email": "analyst@company.com",
-    "firstName": "John",
-    "lastName": "Doe",
-    "role": "analyst",
-    "department": "IT Security"
-  }
-}
 ```
 
-### **POST** `/api/auth/login` - Đăng nhập 
+### `POST /api/auth/login`
+Returns JWT plus the current user profile.
+
+Response user fields now include:
+- `department`: legacy display name kept for compatibility
+- `departmentId`: canonical department reference
+- `departmentDetails`: `{ id, name, code, isActive } | null`
+
 ```json
-Request Body:
-{
-  "email": "admin@admin.com",
-  "password": "admin123"
-}
-
-Response (200):
 {
   "success": true,
   "token": "eyJhbGciOiJIUzI1NiIs...",
   "user": {
-    "id": "60b8d8f8e1b2c1234567890a",
+    "id": "69de10b99483fb26418de666",
     "username": "admin",
-    "email": "admin@admin.com",
-    "firstName": "Admin",
-    "lastName": "User",
-    "role": "admin",
-    "department": "IT Security"
-  }
-}
-```
-
-### **GET** `/api/auth/me` - Lấy thông tin user hiện tại
-```bash
-Headers: Authorization: Bearer <JWT_TOKEN>
-
-Response (200):
-{
-  "success": true,
-  "user": {
-    "id": "60b8d8f8e1b2c1234567890a",
-    "username": "admin",
-    "email": "admin@admin.com",
-    "firstName": "Admin",
-    "lastName": "User",
+    "email": "admin@security.local",
+    "firstName": "System",
+    "lastName": "Administrator",
     "role": "admin",
     "department": "IT Security",
-    "lastLogin": "2025-09-04T08:30:00.000Z"
+    "departmentId": "69df3b3fd7d1b53419bd0764",
+    "departmentDetails": {
+      "id": "69df3b3fd7d1b53419bd0764",
+      "name": "IT Security",
+      "code": "IT_SECURITY",
+      "isActive": true
+    },
+    "isActive": true
   }
 }
 ```
 
-### **PUT** `/api/auth/me` - Cập nhật thông tin user
+### `GET /api/auth/me`
+Returns the authenticated user with the same fields as login.
+
+### `PUT /api/auth/me`
+Updates editable fields of the current user.
+
 ```json
-Headers: Authorization: Bearer <JWT_TOKEN>
-Request Body:
 {
   "firstName": "John",
-  "lastName": "Smith", 
+  "lastName": "Smith",
   "department": "Cyber Security"
 }
-
-Response (200):
-{
-  "success": true,
-  "user": { ...updated user info... }
-}
 ```
 
-### **PUT** `/api/auth/change-password` - Đổi mật khẩu
+### `PUT /api/auth/change-password`
+Changes the current user password.
+
+## User Management
+
+### `GET /api/auth/users`
+Admin-only paginated user list.
+
+Query params:
+- `page`
+- `limit`
+- `role`
+- `isActive`
+- `departmentId`
+
+Response user objects include:
+- `department`
+- `departmentId`
+- `departmentDetails`
+
+### `PUT /api/auth/users/:id`
+Admin-only update for user role, status, and department assignment.
+
+Supported payload fields:
+
 ```json
-Headers: Authorization: Bearer <JWT_TOKEN>
-Request Body:
-{
-  "currentPassword": "oldpassword123",
-  "newPassword": "newpassword456"
-}
-
-Response (200):
-{
-  "success": true,
-  "message": "Password đã được thay đổi thành công"
-}
-```
-
----
-
-## 👥 **USER MANAGEMENT APIs (Admin Only)**
-
-### **GET** `/api/auth/users` - Lấy danh sách users
-```bash
-Headers: Authorization: Bearer <JWT_TOKEN>
-Query Parameters:
-- page: integer (default: 1)
-- limit: integer (default: 10)
-- role: string (admin|analyst|viewer)
-- isActive: boolean
-
-Response (200):
-{
-  "success": true,
-  "count": 5,
-  "pagination": {
-    "page": 1,
-    "limit": 10,
-    "total": 25,
-    "pages": 3
-  },
-  "data": [
-    { ...user objects... }
-  ]
-}
-```
-
-### **PUT** `/api/auth/users/:id` - Cập nhật user
-```json
-Headers: Authorization: Bearer <JWT_TOKEN>
-Request Body:
 {
   "role": "analyst",
   "isActive": true,
-  "department": "IT Security"
-}
-
-Response (200):
-{
-  "success": true,
-  "data": { ...updated user... }
+  "department": "IT Security",
+  "departmentId": "69df3b3fd7d1b53419bd0764"
 }
 ```
 
----
+Notes:
+- If `departmentId` is valid and active, backend also syncs `department` to the canonical department name.
+- If `departmentId` is set to `null` or empty, the canonical link is cleared.
+- During the compatibility phase, `department` string is still preserved.
 
-## 🚨 **INCIDENTS APIs**
+## Department Management
 
-### **GET** `/api/incidents` - Lấy danh sách incidents
-```bash
-Headers: Authorization: Bearer <JWT_TOKEN>
+All endpoints below are admin-only.
 
-Response (200):
-{
-  "success": true,
-  "data": [
-    {
-      "id": "60b8d8f8e1b2c1234567890a",
-      "title": "Phát hiện malware trên server production",
-      "description": "Phát hiện file độc hại trojan.exe...",
-      "severity": "high",
-      "status": "investigating", 
-      "category": "malware",
-      "source": "automated",
-      "affectedSystems": ["web-server-01"],
-      "affectedUsers": ["john.doe@company.com"],
-      "ipAddresses": ["127.0.0.1"],
-      "detectedAt": "2025-09-04T08:30:00.000Z",
-      "createdAt": "2025-09-04T08:35:00.000Z",
-      "createdBy": "60b8d8f8e1b2c1234567890b"
-    }
-  ]
-}
-```
+### `GET /api/departments`
+List departments for admin screens and user assignment dropdowns.
 
-### **POST** `/api/incidents` - Tạo incident mới
+Query params:
+- `isActive`
+- `q`
+- `sortBy`: `name | code | createdAt | updatedAt | sortOrder`
+- `sortDir`: `asc | desc`
+
+Response item:
+
 ```json
-Headers: Authorization: Bearer <JWT_TOKEN>
-Request Body:
 {
-  "title": "Phát hiện malware trên server production",
-  "description": "Phát hiện file độc hại trojan.exe trên server web chính",
-  "severity": "high",
-  "status": "open",
-  "category": "malware", 
-  "source": "automated",
-  "affectedSystems": ["web-server-01", "database-server-02"],
-  "affectedUsers": ["john.doe@company.com"],
-  "ipAddresses": ["127.0.0.1", "10.0.0.5"],
-  "detectedAt": "2025-09-04T08:30:00.000Z",
-  "estimatedImpact": "major",
-  "assignedTo": "60b8d8f8e1b2c1234567890a"
-}
-
-Response (201):
-{
-  "success": true,
-  "data": { ...created incident... }
+  "id": "69df3b3fd7d1b53419bd0764",
+  "name": "IT Security",
+  "code": "IT_SECURITY",
+  "description": "",
+  "manager": null,
+  "parentDepartment": {
+    "id": "69df3b3fd7d1b53419bd076f",
+    "name": "Management",
+    "code": "MANAGEMENT",
+    "isActive": true
+  },
+  "isActive": true,
+  "sortOrder": 0,
+  "createdAt": "2026-04-15T07:16:15.027Z",
+  "updatedAt": "2026-04-15T07:16:15.027Z"
 }
 ```
 
-**Severity Levels:**
-- `low` - Thấp
-- `medium` - Trung bình  
-- `high` - Cao
-- `critical` - Nghiêm trọng
+### `GET /api/departments/:id`
+Get one department by id.
 
-**Status Values:**
-- `open` - Mở
-- `investigating` - Đang điều tra
-- `contained` - Đã kiểm soát
-- `resolved` - Đã giải quyết
-- `closed` - Đã đóng
+### `POST /api/departments`
+Create a department.
 
-**Categories:**
-- `malware` - Phần mềm độc hại
-- `phishing` - Lừa đảo
-- `data_breach` - Vi phạm dữ liệu
-- `ddos` - Tấn công từ chối dịch vụ
-- `insider_threat` - Mối đe dọa nội bộ
-- `physical_security` - An ninh vật lý
-- `network_intrusion` - Xâm nhập mạng
-- `web_application` - Ứng dụng web
-- `social_engineering` - Kỹ thuật xã hội
-- `other` - Khác
-
----
-
-## 📊 **DASHBOARD APIs**
-
-### **GET** `/api/dashboard/stats` - Thống kê tổng quan
-```bash
-Headers: Authorization: Bearer <JWT_TOKEN>
-
-Response (200):
+```json
 {
-  "success": true,
-  "data": {
-    "overview": {
-      "totalIncidents": 13,
-      "openIncidents": 12,
-      "investigatingIncidents": 1,
-      "containedIncidents": 0,
-      "resolvedIncidents": 0,
-      "closedIncidents": 0,
-      "recentIncidents": 11,
-      "todayIncidents": 11,
-      "avgResolutionTime": 0
-    },
-    "severity": {
-      "low": 2,
-      "medium": 6,
-      "high": 3,
-      "critical": 2
-    },
-    "categories": {
-      "authentication": 1,
-      "data_breach": 3,
-      "malware": 2,
-      "insider_threat": 1,
-      "network_intrusion": 2,
-      "phishing": 1
-    },
-    "trends": {
-      "last24Hours": 11,
-      "today": 11
-    }
-  }
+  "name": "Threat Hunting",
+  "code": "THREAT_HUNTING",
+  "description": "Handles proactive threat hunting.",
+  "parentDepartment": "69df3b3fd7d1b53419bd0764",
+  "sortOrder": 10
 }
 ```
 
-### **GET** `/api/dashboard/recent-incidents` - Incidents gần đây
-```bash
-Headers: Authorization: Bearer <JWT_TOKEN>
-Query Parameters:
-- limit: integer (default: 10, max: 50)
+### `PUT /api/departments/:id`
+Update one or more department fields.
 
-Response (200):
+Supported fields:
+
+```json
 {
-  "success": true,
-  "data": [
-    {
-      "id": "...",
-      "title": "Phát hiện malware trên server",
-      "description": "Phát hiện file độc hại...",
-      "severity": "high",
-      "status": "investigating",
-      "category": "malware", 
-      "createdAt": "2025-09-04T08:30:00.000Z",
-      "affectedSystems": ["web-server-01"],
-      "createdBy": {
-        "name": "John Doe",
-        "email": "john.doe@company.com"
-      }
-    }
-  ]
+  "name": "Threat Hunting",
+  "description": "Updated scope.",
+  "parentDepartment": "69df3b3fd7d1b53419bd0764",
+  "isActive": true,
+  "sortOrder": 20
 }
 ```
 
----
+Hierarchy rules:
+- `parentDepartment` must reference an active department
+- a department cannot be its own parent
+- cycles are rejected
+- setting `parentDepartment` to `null` clears the link
 
-## 🔔 **ALERTS APIs**
+### `DELETE /api/departments/:id`
+Soft-delete only. Sets `isActive=false`.
 
-### **GET** `/api/alerts` - Lấy danh sách alerts
+Restriction:
+- departments with active child departments cannot be deactivated until child links are removed or children are deactivated
+
+## Existing Feature APIs
+
+These endpoints were regression-checked after department rollout:
+- `GET /api/dashboard/stats`
+- `GET /api/dashboard/recent-incidents?limit=20`
+- `GET /api/alerts?limit=20`
+- `GET /api/incidents?limit=20`
+- `GET /health`
+
+## Migration Runbook
+
+### Dry run
 ```bash
-Headers: Authorization: Bearer <JWT_TOKEN>
-
-Response (200):
-{
-  "success": true,
-  "data": []
-}
-```
-*Note: API chưa được implement đầy đủ*
-
----
-
-## 🔍 **ELASTICSEARCH APIs**
-
-### **GET** `/api/elasticsearch/ping` - Ping Elasticsearch
-```bash
-Headers: Authorization: Bearer <JWT_TOKEN>
-
-Response (200):
-{
-  "success": true,
-  "message": "ok"
-}
+docker exec backend npm run migrate:departments:dry-run
 ```
 
----
+Expected post-migration steady-state:
+- `usersWouldUpdate = 0`
+- `departmentsCreated = 0`
 
-## 🏥 **SYSTEM APIs**
-
-### **GET** `/health` - Health check
+### Apply migration
 ```bash
-Response (200):
-{
-  "status": "OK",
-  "timestamp": "2025-09-04T08:30:00.000Z",
-  "uptime": 3600.5,
-  "environment": "production"
-}
+docker exec backend npm run migrate:departments
 ```
 
----
+What the migration does:
+- normalizes legacy `User.department`
+- creates canonical `Department` rows only if missing
+- backfills `User.departmentId`
+- keeps `User.department` for compatibility
+- is safe to rerun
 
-## 🛡️ **AUTHENTICATION FLOW**
+## Docker Deployment Order
 
-1. **Đăng nhập** → `/api/auth/login` → Nhận JWT token
-2. **Attach token** → Header: `Authorization: Bearer <token>`
-3. **Truy cập APIs** → Protected endpoints
+Recommended order for future environments:
 
-## 📝 **USER ROLES & PERMISSIONS**
-
-- **`admin`** - Full access (users, incidents, dashboard, alerts)
-- **`analyst`** - Manage incidents, view dashboard
-- **`viewer`** - Read-only access
-
----
-
-## 🧪 **TEST CÁC API**
-
-### Test login:
+1. Create a MongoDB backup.
 ```bash
-curl -X POST http://<SERVER_IP>:5001/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@admin.com","password":"admin123"}'
+docker exec mongodb sh -lc "mongodump --uri='mongodb://<USER>:<PASS>@localhost:27017/security_incidents?authSource=admin' --archive=/tmp/security_incidents_departments_<STAMP>.archive.gz --gzip"
+docker cp mongodb:/tmp/security_incidents_departments_<STAMP>.archive.gz ./security-elk/backups/mongodb/security_incidents_departments_<STAMP>.archive.gz
 ```
 
-### Test dashboard stats (sau khi có token):
+2. Rebuild compatible backend and frontend images.
 ```bash
-curl -X GET http://<SERVER_IP>:5001/api/dashboard/stats \
-  -H "Authorization: Bearer <YOUR_JWT_TOKEN>"
+docker compose up -d --build backend frontend
 ```
 
-### Test tạo incident:
+3. Wait for health:
+- backend `healthy`
+- mongodb `healthy`
+- frontend `up`
+
+4. Run migration dry-run.
 ```bash
-curl -X POST http://<SERVER_IP>:5001/api/incidents \
-  -H "Authorization: Bearer <YOUR_JWT_TOKEN>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "title": "Test Incident",
-    "description": "Incident for testing API",
-    "severity": "medium",
-    "category": "other"
-  }'
+docker exec backend npm run migrate:departments:dry-run
 ```
 
----
+5. Apply migration if dry-run output is correct.
+```bash
+docker exec backend npm run migrate:departments
+```
 
-**🔥 API Backend đã sẵn sàng với 13 incidents và full authentication system!**
+6. Re-run dry-run to confirm idempotency.
+
+7. Verify:
+- `GET /health`
+- login as admin
+- `GET /api/departments`
+- `GET /api/auth/users`
+- frontend routes `/users` and `/departments`
+
+## Rollback Guidance
+
+- Do not drop the `departments` collection blindly.
+- First restore users to legacy-only mode:
+  - set `departmentId = null`
+  - restore or keep `department` string
+- Verify login and `/api/auth/users` first.
+- Only then decide whether migration-created departments should be deactivated or removed.
+
+## Deferred For Phase 2
+
+- Department-specific ACL
+- Multi-department membership
+- Incident ownership by department
+- Department analytics dashboard

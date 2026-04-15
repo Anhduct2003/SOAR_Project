@@ -96,6 +96,9 @@ const validateRegister = (req, res, next) => {
       .optional()
       .max(100)
       .trim(),
+    departmentId: Joi.string()
+      .optional()
+      .allow(null, ''),
     role: Joi.string()
       .valid('admin', 'analyst', 'viewer')
       .default('viewer')

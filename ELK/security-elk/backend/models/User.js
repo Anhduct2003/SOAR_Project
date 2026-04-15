@@ -48,6 +48,11 @@ const userSchema = new mongoose.Schema({
     trim: true,
     maxlength: [100, 'Phòng ban không được quá 100 ký tự']
   },
+  departmentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Department',
+    default: null
+  },
   isActive: {
     type: Boolean,
     default: true
@@ -77,6 +82,7 @@ userSchema.virtual('fullName').get(function () {
 // Index cho tìm kiếm
 userSchema.index({ email: 1, username: 1 });
 userSchema.index({ role: 1, isActive: 1 });
+userSchema.index({ departmentId: 1, role: 1, isActive: 1 });
 
 // Middleware trước khi save - hash password
 userSchema.pre('save', async function (next) {

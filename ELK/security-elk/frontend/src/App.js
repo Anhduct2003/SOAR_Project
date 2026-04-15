@@ -13,6 +13,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Incidents from './pages/Incidents';
 import Alerts from './pages/Alerts';
+import Departments from './pages/Departments';
 import Users from './pages/Users';
 import Settings from './pages/Settings';
 import './App.css';
@@ -50,6 +51,7 @@ function App() {
                       <Route path="dashboard" element={<Dashboard />} />
                       <Route path="incidents" element={<Incidents />} />
                       <Route path="alerts" element={<Alerts />} />
+                      <Route path="departments" element={<Departments />} />
                       <Route path="users" element={<Users />} />
                       <Route path="settings" element={<Settings />} />
                     </Route>

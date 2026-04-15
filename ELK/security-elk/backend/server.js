@@ -16,6 +16,7 @@ const logger = require('./utils/logger');
 const { connectDB, disconnectDB } = require('./db');
 const errorHandler = require('./middleware/errorHandler');
 const authRoutes = require('./routes/auth');
+const departmentRoutes = require('./routes/departments');
 const incidentRoutes = require('./routes/incidents');
 const alertRoutes = require('./routes/alerts');
 const dashboardRoutes = require('./routes/dashboard');
@@ -216,6 +217,7 @@ app.get('/api/config', (req, res) => {
 
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/departments', departmentRoutes);
 app.use('/api/incidents', incidentRoutes);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/dashboard', dashboardRoutes);

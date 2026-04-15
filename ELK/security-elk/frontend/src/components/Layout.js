@@ -8,6 +8,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import {
   ArrowLeftOnRectangleIcon,
   BellIcon,
+  BuildingOffice2Icon,
   ChevronDownIcon,
   CircleStackIcon,
   Cog6ToothIcon,
@@ -344,6 +345,7 @@ const Layout = () => {
       { key: 'dashboard', path: '/dashboard', icon: HomeIcon },
       { key: 'incidents', path: '/incidents', icon: ShieldExclamationIcon },
       { key: 'alerts', path: '/alerts', icon: BellIcon },
+      { key: 'departments', path: '/departments', icon: BuildingOffice2Icon },
       { key: 'users', path: '/users', icon: UsersIcon },
       { key: 'settings', path: '/settings', icon: Cog6ToothIcon }
     ],

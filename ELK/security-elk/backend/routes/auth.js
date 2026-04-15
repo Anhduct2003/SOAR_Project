@@ -1,16 +1,78 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const User = require('../models/User');
+const Department = require('../models/Department');
 const { protect, authorize } = require('../middleware/auth');
 const { validateLogin, validateRegister, validateChangePassword } = require('../middleware/validator');
 const logger = require('../utils/logger');
 
 const router = express.Router();
+const departmentPopulate = {
+  path: 'departmentId',
+  select: 'name code isActive'
+};
 
 // Generate JWT Token
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRE || '30d',
+  });
+};
+
+const hasOwn = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
+
+const toDepartmentSummary = (departmentRef) => {
+  if (!departmentRef || typeof departmentRef !== 'object' || Array.isArray(departmentRef)) {
+    return null;
+  }
+
+  if (!departmentRef.name) {
+    return null;
+  }
+
+  return {
+    id: departmentRef._id,
+    name: departmentRef.name,
+    code: departmentRef.code,
+    isActive: departmentRef.isActive
+  };
+};
+
+const mapUserResponse = (user) => {
+  const departmentSummary = toDepartmentSummary(user.departmentId);
+  const resolvedDepartmentId = departmentSummary?.id || user.departmentId || null;
+  const resolvedDepartmentName = departmentSummary?.name || user.department || null;
+
+  return {
+    id: user._id,
+    username: user.username,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    role: user.role,
+    department: resolvedDepartmentName,
+    departmentId: resolvedDepartmentId,
+    departmentDetails: departmentSummary,
+    isActive: user.isActive,
+    lastLogin: user.lastLogin,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt
+  };
+};
+
+const resolveDepartmentAssignment = async (departmentId) => {
+  if (!departmentId) {
+    return null;
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(departmentId)) {
+    return false;
+  }
+
+  return Department.findOne({
+    _id: departmentId,
+    isActive: true
   });
 };
 
@@ -81,7 +143,7 @@ const generateToken = (id) => {
 // @access  Public
 router.post('/register', validateRegister, async (req, res, next) => {
   try {
-    const { username, email, password, firstName, lastName, department, role } = req.body;
+    const { username, email, password, firstName, lastName, department, departmentId, role } = req.body;
 
     // Kiểm tra user đã tồn tại
     const userExists = await User.findOne({ $or: [{ email }, { username }] });
@@ -93,13 +155,38 @@ router.post('/register', validateRegister, async (req, res, next) => {
     }
 
     // Tạo user mới
+    let resolvedDepartmentId = null;
+    let resolvedDepartmentName = department;
+
+    if (departmentId) {
+      const selectedDepartment = await resolveDepartmentAssignment(departmentId);
+
+      if (selectedDepartment === false) {
+        return res.status(400).json({
+          success: false,
+          message: 'Department ID is invalid'
+        });
+      }
+
+      if (!selectedDepartment) {
+        return res.status(400).json({
+          success: false,
+          message: 'Department not found or inactive'
+        });
+      }
+
+      resolvedDepartmentId = selectedDepartment._id;
+      resolvedDepartmentName = selectedDepartment.name;
+    }
+
     const user = await User.create({
       username,
       email,
       password,
       firstName,
       lastName,
-      department,
+      department: resolvedDepartmentName,
+      departmentId: resolvedDepartmentId,
       role: role || 'viewer'
     });
 
@@ -111,15 +198,7 @@ router.post('/register', validateRegister, async (req, res, next) => {
     res.status(201).json({
       success: true,
       token,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-        department: user.department
-      }
+      user: mapUserResponse(user)
     });
   } catch (error) {
     next(error);
@@ -199,7 +278,9 @@ router.post('/login', validateLogin, async (req, res, next) => {
     }
 
     // Kiểm tra user
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({ email })
+      .select('+password')
+      .populate(departmentPopulate);
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -243,15 +324,7 @@ router.post('/login', validateLogin, async (req, res, next) => {
     res.json({
       success: true,
       token,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-        department: user.department
-      }
+      user: mapUserResponse(user)
     });
   } catch (error) {
     next(error);
@@ -263,19 +336,10 @@ router.post('/login', validateLogin, async (req, res, next) => {
 // @access  Private
 router.get('/me', protect, async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user.id).populate(departmentPopulate);
     res.json({
       success: true,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-        department: user.department,
-        lastLogin: user.lastLogin
-      }
+      user: mapUserResponse(user)
     });
   } catch (error) {
     next(error);
@@ -287,11 +351,17 @@ router.get('/me', protect, async (req, res, next) => {
 // @access  Private
 router.put('/me', protect, async (req, res, next) => {
   try {
-    const fieldsToUpdate = {
-      firstName: req.body.firstName,
-      lastName: req.body.lastName,
-      department: req.body.department
-    };
+    const fieldsToUpdate = {};
+
+    if (hasOwn(req.body, 'firstName')) {
+      fieldsToUpdate.firstName = req.body.firstName;
+    }
+    if (hasOwn(req.body, 'lastName')) {
+      fieldsToUpdate.lastName = req.body.lastName;
+    }
+    if (hasOwn(req.body, 'department')) {
+      fieldsToUpdate.department = req.body.department;
+    }
 
     const user = await User.findByIdAndUpdate(
       req.user.id,
@@ -300,19 +370,11 @@ router.put('/me', protect, async (req, res, next) => {
         new: true,
         runValidators: true
       }
-    );
+    ).populate(departmentPopulate);
 
     res.json({
       success: true,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-        department: user.department
-      }
+      user: mapUserResponse(user)
     });
   } catch (error) {
     next(error);
@@ -371,9 +433,13 @@ router.get('/users', protect, authorize('admin'), async (req, res, next) => {
     const query = {};
     if (req.query.role) query.role = req.query.role;
     if (req.query.isActive !== undefined) query.isActive = req.query.isActive === 'true';
+    if (req.query.departmentId && mongoose.Types.ObjectId.isValid(req.query.departmentId)) {
+      query.departmentId = req.query.departmentId;
+    }
 
     const users = await User.find(query)
       .select('-password')
+      .populate(departmentPopulate)
       .skip(startIndex)
       .limit(limit)
       .sort({ createdAt: -1 });
@@ -389,7 +455,7 @@ router.get('/users', protect, authorize('admin'), async (req, res, next) => {
         total,
         pages: Math.ceil(total / limit)
       },
-      data: users
+      data: users.map(mapUserResponse)
     });
   } catch (error) {
     next(error);
@@ -401,16 +467,58 @@ router.get('/users', protect, authorize('admin'), async (req, res, next) => {
 // @access  Private/Admin
 router.put('/users/:id', protect, authorize('admin'), async (req, res, next) => {
   try {
-    const { role, isActive, department } = req.body;
+    const fieldsToUpdate = {};
+
+    if (hasOwn(req.body, 'role')) {
+      fieldsToUpdate.role = req.body.role;
+    }
+    if (hasOwn(req.body, 'isActive')) {
+      fieldsToUpdate.isActive = req.body.isActive;
+    }
+    if (hasOwn(req.body, 'department')) {
+      fieldsToUpdate.department = req.body.department;
+    }
+
+    if (hasOwn(req.body, 'departmentId')) {
+      const normalizedDepartmentId = req.body.departmentId || null;
+
+      if (!normalizedDepartmentId) {
+        fieldsToUpdate.departmentId = null;
+        if (!hasOwn(req.body, 'department')) {
+          fieldsToUpdate.department = null;
+        }
+      } else {
+        const department = await resolveDepartmentAssignment(normalizedDepartmentId);
+
+        if (department === false) {
+          return res.status(400).json({
+            success: false,
+            message: 'Department ID is invalid'
+          });
+        }
+
+        if (!department) {
+          return res.status(400).json({
+            success: false,
+            message: 'Department not found or inactive'
+          });
+        }
+
+        fieldsToUpdate.departmentId = department._id;
+        fieldsToUpdate.department = department.name;
+      }
+    }
 
     const user = await User.findByIdAndUpdate(
       req.params.id,
-      { role, isActive, department },
+      fieldsToUpdate,
       {
         new: true,
         runValidators: true
       }
-    ).select('-password');
+    )
+      .select('-password')
+      .populate(departmentPopulate);
 
     if (!user) {
       return res.status(404).json({
@@ -423,7 +531,7 @@ router.put('/users/:id', protect, authorize('admin'), async (req, res, next) => 
 
     res.json({
       success: true,
-      data: user
+      data: mapUserResponse(user)
     });
   } catch (error) {
     next(error);
