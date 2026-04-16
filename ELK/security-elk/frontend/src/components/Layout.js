@@ -340,17 +340,21 @@ const Layout = () => {
     ? t(`common.roles.${user.role}`)
     : t('common.roles.analyst');
 
-  const navItems = useMemo(
-    () => [
+  const navItems = useMemo(() => {
+    const items = [
       { key: 'dashboard', path: '/dashboard', icon: HomeIcon },
       { key: 'incidents', path: '/incidents', icon: ShieldExclamationIcon },
       { key: 'alerts', path: '/alerts', icon: BellIcon },
-      { key: 'departments', path: '/departments', icon: BuildingOffice2Icon },
-      { key: 'users', path: '/users', icon: UsersIcon },
+      { key: 'departments', path: '/departments', icon: BuildingOffice2Icon, adminOnly: true },
+      { key: 'users', path: '/users', icon: UsersIcon, adminOnly: true },
       { key: 'settings', path: '/settings', icon: Cog6ToothIcon }
-    ],
-    []
-  );
+    ];
+
+    if (user?.role !== 'admin') {
+      return items.filter(item => !item.adminOnly);
+    }
+    return items;
+  }, [user?.role]);
 
   const getPageTitle = () => {
     const currentItem = navItems.find((item) => item.path === location.pathname);

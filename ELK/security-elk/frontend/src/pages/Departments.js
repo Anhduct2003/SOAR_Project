@@ -13,7 +13,9 @@ import {
   NoSymbolIcon, 
   CheckCircleIcon,
   MagnifyingGlassIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  UserGroupIcon,
+  BuildingOfficeIcon
 } from '@heroicons/react/24/outline';
 
 const EMPTY_FORM = {
@@ -167,180 +169,141 @@ const DepartmentModal = ({ isOpen, onClose, editingId, form, setForm, saving, ha
   );
 };
 
-const DepartmentRow = ({ department, depth = 0, expandedRows, toggleExpand, onEdit, onToggleActive, t }) => {
-  const isExpanded = expandedRows.has(department.id);
-  const hasChildren = department.children && department.children.length > 0;
+const DepartmentCard = ({ department, onEdit, onToggleActive, t }) => {
+  const parentPath = department.parentDepartment ? `${department.parentDepartment.name} / ` : '';
 
   return (
-    <div style={{ marginBottom: '0.5rem' }}>
-      <div 
-        className="card"
-        style={{ 
-          marginLeft: depth * 24,
-          padding: '0.75rem 1rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '1rem',
-          opacity: department.isActive ? 1 : 0.7,
-          backgroundColor: department.isActive ? 'var(--bg-surface)' : 'rgba(148, 163, 184, 0.05)',
-          borderColor: department.isActive ? 'var(--border-color)' : 'transparent'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: 0 }}>
-          {hasChildren ? (
-            <button 
-              onClick={() => toggleExpand(department.id)}
+    <div 
+      className="card animate-fade-in"
+      style={{ 
+        padding: '1.25rem',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '1rem',
+        opacity: department.isActive ? 1 : 0.6,
+        backgroundColor: 'var(--bg-surface)',
+        border: '1px solid var(--border-color)',
+        borderRadius: '16px',
+        position: 'relative',
+        transition: 'all 0.2s ease',
+        height: '100%',
+        minHeight: '200px',
+        boxShadow: department.isActive ? '0 4px 20px -5px rgba(0,0,0,0.1)' : 'none'
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={{ 
+          width: 40, 
+          height: 40, 
+          borderRadius: '10px', 
+          backgroundColor: 'rgba(56, 189, 248, 0.1)', 
+          color: 'var(--accent-color)', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center' 
+        }}>
+          <BuildingOfficeIcon style={{ width: 22, height: 22 }} />
+        </div>
+
+        <Menu as="div" style={{ position: 'relative' }}>
+          <Menu.Button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem', color: 'var(--text-muted)' }}>
+            <EllipsisVerticalIcon style={{ width: 20, height: 20 }} />
+          </Menu.Button>
+          <Transition
+            as={Fragment}
+            enter="transition ease-out duration-100"
+            enterFrom="transform opacity-0 scale-95"
+            enterTo="transform opacity-100 scale-100"
+            leave="transition ease-in duration-75"
+            leaveFrom="transform opacity-100 scale-100"
+            leaveTo="transform opacity-0 scale-95"
+          >
+            <Menu.Items 
               style={{ 
-                background: 'none', 
-                border: 'none', 
-                cursor: 'pointer', 
-                padding: '0.25rem',
-                display: 'flex',
-                alignItems: 'center',
-                transition: 'transform 0.2s',
-                transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                color: isExpanded ? 'var(--accent-color)' : 'var(--text-muted)'
+                position: 'absolute', 
+                right: 0, 
+                zIndex: 20, 
+                marginTop: '0.25rem', 
+                width: '160px', 
+                backgroundColor: 'var(--bg-surface)', 
+                borderRadius: '10px', 
+                padding: '0.4rem', 
+                boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2)',
+                border: '1px solid var(--border-color)',
+                outline: 'none'
               }}
             >
-              <ChevronRightIcon style={{ width: 18, height: 18 }} />
-            </button>
-          ) : (
-            <div style={{ width: 26 }} />
-          )}
-
-          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <span style={{ fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {department.name}
-              </span>
-              <span style={{ padding: '2px 8px', borderRadius: '4px', backgroundColor: 'rgba(2, 132, 199, 0.1)', color: 'var(--accent-color)', fontSize: '0.7rem', fontWeight: 600, fontFamily: 'monospace' }}>
-                {department.code}
-              </span>
-              {!department.isActive && (
-                <span className="badge badge-critical" style={{ fontSize: '0.65rem' }}>
-                  {t('common.status.locked')}
-                </span>
-              )}
-            </div>
-            <p style={{ margin: '2px 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {department.description || t('common.messages.notAvailable')}
-            </p>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ display: 'none', fontSize: '0.75rem', color: 'var(--text-muted)' }} className="sm-block">
-            {t('departments.fields.sortOrder')}: {department.sortOrder}
-          </div>
-
-          <Menu as="div" style={{ position: 'relative' }}>
-            <Menu.Button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem', color: 'var(--text-muted)', display: 'flex' }}>
-              <EllipsisVerticalIcon style={{ width: 20, height: 20 }} />
-            </Menu.Button>
-            <Transition
-              as={Fragment}
-              enter="transition ease-out duration-100"
-              enterFrom="transform opacity-0 scale-95"
-              enterTo="transform opacity-100 scale-100"
-              leave="transition ease-in duration-75"
-              leaveFrom="transform opacity-100 scale-100"
-              leaveTo="transform opacity-0 scale-95"
-            >
-              <Menu.Items 
-                style={{ 
-                  position: 'absolute', 
-                  right: 0, 
-                  zIndex: 20, 
-                  marginTop: '0.5rem', 
-                  width: '180px', 
-                  backgroundColor: 'var(--bg-surface)', 
-                  borderRadius: '12px', 
-                  padding: '0.5rem', 
-                  boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2)',
-                  border: '1px solid var(--border-color)',
-                  outline: 'none'
-                }}
-              >
-                <Menu.Item>
-                  {({ active }) => (
-                    <button
-                      onClick={() => onEdit(department)}
-                      style={{
-                        display: 'flex',
-                        width: '100%',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        padding: '0.625rem 0.75rem',
-                        fontSize: '0.875rem',
-                        fontWeight: 600,
-                        borderRadius: '8px',
-                        border: 'none',
-                        cursor: 'pointer',
-                        backgroundColor: active ? 'rgba(2, 132, 199, 0.1)' : 'transparent',
-                        color: active ? 'var(--accent-color)' : 'var(--text-primary)',
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      <PencilIcon style={{ width: 16, height: 16 }} />
-                      {t('common.actions.edit')}
-                    </button>
-                  )}
-                </Menu.Item>
-                <Menu.Item>
-                  {({ active }) => (
-                    <button
-                      onClick={() => onToggleActive(department)}
-                      style={{
-                        display: 'flex',
-                        width: '100%',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        padding: '0.625rem 0.75rem',
-                        fontSize: '0.875rem',
-                        fontWeight: 600,
-                        borderRadius: '8px',
-                        border: 'none',
-                        cursor: 'pointer',
-                        backgroundColor: active ? (department.isActive ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)') : 'transparent',
-                        color: active ? (department.isActive ? 'var(--color-critical)' : 'var(--color-low)') : 'var(--text-primary)',
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      {department.isActive ? <NoSymbolIcon style={{ width: 16, height: 16 }} /> : <CheckCircleIcon style={{ width: 16, height: 16 }} />}
-                      {t(department.isActive ? 'common.actions.deactivate' : 'common.actions.activate')}
-                    </button>
-                  )}
-                </Menu.Item>
-              </Menu.Items>
-            </Transition>
-          </Menu>
-        </div>
+              <Menu.Item>
+                {({ active }) => (
+                  <button
+                    onClick={() => onEdit(department)}
+                    style={{
+                      display: 'flex', width: '100%', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem',
+                      fontSize: '0.8125rem', fontWeight: 600, borderRadius: '6px', border: 'none', cursor: 'pointer',
+                      backgroundColor: active ? 'rgba(56, 189, 248, 0.1)' : 'transparent',
+                      color: active ? 'var(--accent-color)' : 'var(--text-primary)'
+                    }}
+                  >
+                    <PencilIcon style={{ width: 14, height: 14 }} />
+                    {t('common.actions.edit')}
+                  </button>
+                )}
+              </Menu.Item>
+              <Menu.Item>
+                {({ active }) => (
+                  <button
+                    onClick={() => onToggleActive(department)}
+                    style={{
+                      display: 'flex', width: '100%', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem',
+                      fontSize: '0.8125rem', fontWeight: 600, borderRadius: '6px', border: 'none', cursor: 'pointer',
+                      backgroundColor: active ? (department.isActive ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)') : 'transparent',
+                      color: active ? (department.isActive ? 'var(--color-critical)' : 'var(--color-low)') : 'var(--text-primary)'
+                    }}
+                  >
+                    {department.isActive ? <NoSymbolIcon style={{ width: 14, height: 14 }} /> : <CheckCircleIcon style={{ width: 14, height: 14 }} />}
+                    {t(department.isActive ? 'common.actions.deactivate' : 'common.actions.activate')}
+                  </button>
+                )}
+              </Menu.Item>
+            </Menu.Items>
+          </Transition>
+        </Menu>
       </div>
 
-      <AnimatePresence>
-        {hasChildren && isExpanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: 'easeInOut' }}
-            style={{ overflow: 'hidden' }}
-          >
-            {department.children.map((child) => (
-              <DepartmentRow 
-                key={child.id} 
-                department={child} 
-                depth={depth + 1} 
-                expandedRows={expandedRows}
-                toggleExpand={toggleExpand}
-                onEdit={onEdit}
-                onToggleActive={onToggleActive}
-                t={t}
-              />
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <div style={{ flex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+          <h4 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>{department.name}</h4>
+          <span style={{ fontSize: '0.625rem', padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(56, 189, 248, 0.05)', color: 'var(--accent-color)', fontWeight: 700, fontFamily: 'monospace' }}>
+            {department.code}
+          </span>
+        </div>
+        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+          {parentPath && <span style={{ opacity: 0.6 }}>{parentPath}</span>}
+          <span style={{ fontWeight: 600 }}>{department.name}</span>
+        </p>
+        <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '0.75rem', lineHeight: '1.4', display: '-webkit-box', WebkitLineClamp: '2', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+          {department.description || t('common.messages.notAvailable')}
+        </p>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)' }}>
+          <UserGroupIcon style={{ width: 16, height: 16 }} />
+          <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>{department.userCount || 0} {t('users.title').toLowerCase()}</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <div style={{ 
+            width: 6, 
+            height: 6, 
+            borderRadius: '50%', 
+            backgroundColor: department.isActive ? 'var(--color-low)' : 'var(--color-critical)',
+            boxShadow: department.isActive ? '0 0 8px var(--color-low)' : 'none'
+          }} />
+          <span style={{ fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase', color: department.isActive ? 'var(--color-low)' : 'var(--color-critical)' }}>
+            {department.isActive ? t('common.status.active') : t('common.status.locked')}
+          </span>
+        </div>
+      </div>
     </div>
   );
 };
@@ -514,7 +477,7 @@ const Departments = () => {
   }
 
   return (
-    <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <h2 style={{ fontSize: '1.875rem', fontWeight: 800, margin: 0, letterSpacing: '-0.025em' }}>
@@ -528,7 +491,7 @@ const Departments = () => {
           <button 
             onClick={fetchDepartments}
             className="btn"
-            style={{ padding: '0.625rem', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
+            style={{ padding: '0.625rem', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', borderRadius: '10px' }}
             title={t('common.actions.refresh')}
           >
             <ArrowPathIcon style={{ width: 20, height: 20 }} className={loading ? 'animate-spin' : ''} />
@@ -536,7 +499,7 @@ const Departments = () => {
           <button 
             onClick={handleOpenModal}
             className="btn btn-primary"
-            style={{ fontWeight: 700 }}
+            style={{ fontWeight: 700, borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
           >
             <PlusIcon style={{ width: 20, height: 20 }} />
             {t('common.actions.create')}
@@ -544,28 +507,25 @@ const Departments = () => {
         </div>
       </header>
 
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-        <MagnifyingGlassIcon style={{ position: 'absolute', left: '1rem', width: 20, height: 20, color: 'var(--text-muted)' }} />
-        <input 
-          type="text"
-          placeholder={t('common.actions.search')}
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{ 
-            width: '100%', 
-            padding: '0.875rem 1rem 0.875rem 3rem', 
-            borderRadius: '16px', 
-            border: '1px solid var(--border-color)', 
-            backgroundColor: 'var(--bg-surface)', 
-            color: 'var(--text-primary)', 
-            outline: 'none',
-            fontSize: '1rem',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-          }}
-        />
+      {/* Toolbar */}
+      <div className="card" style={{ padding: '0.75rem 1rem', borderRadius: '12px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface)' }}>
+        <div style={{ position: 'relative', maxWidth: '300px' }}>
+          <MagnifyingGlassIcon style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', width: 18, height: 18, color: 'var(--text-muted)' }} />
+          <input 
+            type="text"
+            placeholder={t('common.actions.search') + '...'}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ 
+              width: '100%', padding: '0.5rem 1rem 0.5rem 2.5rem', borderRadius: '8px', 
+              border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-primary)', 
+              color: 'var(--text-primary)', outline: 'none', fontSize: '0.875rem' 
+            }}
+          />
+        </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+      <div style={{ minHeight: '400px' }}>
         {loading && departments.length === 0 ? (
           <div style={{ padding: '5rem 0', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
             <ArrowPathIcon style={{ width: 48, height: 48, color: 'var(--accent-color)' }} className="animate-spin" />
@@ -580,13 +540,18 @@ const Departments = () => {
             <p style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{searchTerm ? t('common.messages.noResults') : t('departments.empty')}</p>
           </div>
         ) : (
-          <div className="animate-fade-in">
+          <div 
+            className="animate-fade-in"
+            style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', 
+              gap: '1.5rem' 
+            }}
+          >
             {hierarchyRoots.map((department) => (
-              <DepartmentRow 
+              <DepartmentCard 
                 key={department.id} 
                 department={department} 
-                expandedRows={expandedRows}
-                toggleExpand={toggleExpand}
                 onEdit={handleEdit}
                 onToggleActive={handleToggleActive}
                 t={t}

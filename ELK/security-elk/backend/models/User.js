@@ -87,15 +87,21 @@ userSchema.index({ departmentId: 1, role: 1, isActive: 1 });
 // Middleware trước khi save - hash password
 userSchema.pre('save', async function (next) {
   // Chỉ hash password nếu nó được thay đổi
-  if (!this.isModified('password')) return next();
+  if (!this.isModified('password')) {
+    console.log(`[DEBUG] Password NOT modified for User: ${this.email}`);
+    return next();
+  }
 
   try {
+    console.log(`[DEBUG] Hashing NEW password for User: ${this.email}...`);
     // Hash password với salt rounds từ environment variable (default: 12)
     const saltRounds = parseInt(process.env.BCRYPT_SALT_ROUNDS, 10) || 12;
     const salt = await bcrypt.genSalt(saltRounds);
     this.password = await bcrypt.hash(this.password, salt);
+    console.log(`[DEBUG] Password hashed successfully for User: ${this.email}`);
     next();
   } catch (error) {
+    console.error(`[DEBUG] Error hashing password for User: ${this.email}:`, error);
     next(error);
   }
 });
@@ -110,6 +116,10 @@ userSchema.pre('save', function (next) {
 
 // Method để so sánh password
 userSchema.methods.matchPassword = async function (enteredPassword) {
+  if (!this.password) {
+    console.error(`[DEBUG] Cannot compare password: User ${this.email} document missing hashed password field.`);
+    return false;
+  }
   return await bcrypt.compare(enteredPassword, this.password);
 };
 

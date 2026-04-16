@@ -21,7 +21,9 @@ const en = {
       search: 'Search',
       signOut: 'Sign out',
       previous: 'Previous',
-      next: 'Next'
+      next: 'Next',
+      apply: 'Apply',
+      reset: 'Reset'
     },
     status: {
       loading: 'Loading...',
@@ -175,6 +177,18 @@ const en = {
     editDepartmentPrompt: 'Enter a new department',
     previousPage: 'Previous page',
     nextPage: 'Next page',
+    editUserTitle: 'Edit User',
+    passwordResetTitle: 'Reset Password',
+    passwordResetSubtitle: 'Leave blank to keep current password',
+    fields: {
+      firstName: 'First Name',
+      lastName: 'Last Name',
+      email: 'Email',
+      role: 'Role',
+      department: 'Department',
+      status: 'Status',
+      newPassword: 'New Password'
+    },
     departmentUpdated: 'Department updated.',
     roleUpdated: 'Role updated.',
     userUpdated: 'User updated.',

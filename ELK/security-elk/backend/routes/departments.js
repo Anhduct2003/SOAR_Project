@@ -123,6 +123,7 @@ const mapDepartmentResponse = (department) => ({
   name: department.name,
   code: department.code,
   description: department.description || '',
+  userCount: department.userCount || 0,
   manager:
     department.manager && typeof department.manager === 'object'
       ? {
@@ -170,10 +171,23 @@ router.get('/', async (req, res, next) => {
       .populate('parentDepartment', 'name code isActive')
       .sort({ [sortBy]: sortDir, name: 1 });
 
+    // Lấy số lượng user cho mỗi department bằng aggregation để tối ưu hiệu năng
+    const userCounts = await User.aggregate([
+      { $group: { _id: '$departmentId', count: { $sum: 1 } } }
+    ]);
+    
+    const countsMap = new Map(userCounts.map(c => [String(c._id), c.count]));
+
+    const data = departments.map(dept => {
+      const plainDept = dept.toObject();
+      plainDept.userCount = countsMap.get(String(dept._id)) || 0;
+      return mapDepartmentResponse(plainDept);
+    });
+
     res.json({
       success: true,
       count: departments.length,
-      data: departments.map(mapDepartmentResponse)
+      data
     });
   } catch (error) {
     next(error);

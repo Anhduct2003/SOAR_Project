@@ -21,7 +21,9 @@ const vi = {
       search: 'Tìm kiếm',
       signOut: 'Đăng xuất',
       previous: 'Trước',
-      next: 'Sau'
+      next: 'Sau',
+      apply: 'Áp dụng',
+      reset: 'Đặt lại'
     },
     status: {
       loading: 'Đang tải...',
@@ -175,6 +177,18 @@ const vi = {
     editDepartmentPrompt: 'Nhập phòng ban mới',
     previousPage: 'Trang trước',
     nextPage: 'Trang sau',
+    editUserTitle: 'Chỉnh sửa người dùng',
+    passwordResetTitle: 'Đặt lại mật khẩu',
+    passwordResetSubtitle: 'Để trống nếu không muốn đổi mật khẩu',
+    fields: {
+      firstName: 'Họ',
+      lastName: 'Tên',
+      email: 'Email',
+      role: 'Vai trò',
+      department: 'Phòng ban',
+      status: 'Trạng thái',
+      newPassword: 'Mật khẩu mới'
+    },
     departmentUpdated: 'Đã cập nhật phòng ban.',
     roleUpdated: 'Đã cập nhật vai trò.',
     userUpdated: 'Đã cập nhật người dùng.',
