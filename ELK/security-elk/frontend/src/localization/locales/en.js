@@ -74,7 +74,8 @@ const en = {
       name: 'Name',
       role: 'Role',
       department: 'Department',
-      actions: 'Actions'
+      actions: 'Actions',
+      total: 'Total'
     },
     messages: {
       noData: 'No data available.',
@@ -151,7 +152,14 @@ const en = {
     severityMatrix: 'Severity Matrix',
     geographicalMap: 'Geographical Threat Map',
     localizationOn: 'Localization: on',
-    popupSeverity: 'Severity'
+    popupSeverity: 'Severity',
+    criticalAlertTitle: 'CRITICAL INCIDENTS DETECTED',
+    criticalAlertSubtitle: '{{count}} unacknowledged critical incidents require immediate attention',
+    attackerIntel: 'Attacker Intelligence',
+    attackSummary: 'Attack Summary',
+    totalAttempts: 'Total attempts detected',
+    firstSeen: 'First seen',
+    securityHealthReport: 'Security Health Report'
   },
   alerts: {
     highCritical: 'High + Critical',

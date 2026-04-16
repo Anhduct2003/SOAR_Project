@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import {
   Area,
   AreaChart,
@@ -15,21 +16,35 @@ import {
   YAxis
 } from 'recharts';
 import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet';
+import { Dialog, Transition } from '@headlessui/react';
 import {
   BoltIcon,
   CheckBadgeIcon,
   ClockIcon,
   CpuChipIcon,
   ShieldExclamationIcon,
-  UserMinusIcon
+  UserMinusIcon,
+  XMarkIcon
 } from '@heroicons/react/24/solid';
 import 'leaflet/dist/leaflet.css';
 import { useLocalization } from '../contexts/LocalizationContext';
 import { useSocket } from '../contexts/SocketContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useNavigate } from 'react-router-dom';
 
-const StatCard = ({ title, value, icon: Icon, color, trend }) => (
-  <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', position: 'relative', overflow: 'hidden' }}>
+const StatCard = ({ title, value, icon: Icon, color, trend, onClick }) => (
+  <div 
+    className="card cursor-pointer group" 
+    onClick={onClick}
+    style={{ 
+      display: 'flex', 
+      alignItems: 'center', 
+      gap: '1.25rem', 
+      position: 'relative', 
+      overflow: 'hidden',
+      transition: 'all 0.3s ease'
+    }}
+  >
     <div
       style={{
         backgroundColor: `${color}15`,
@@ -38,8 +53,10 @@ const StatCard = ({ title, value, icon: Icon, color, trend }) => (
         borderRadius: '12px',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center'
+        justifyContent: 'center',
+        transition: 'transform 0.3s ease'
       }}
+      className="group-hover:scale-110"
     >
       <Icon style={{ width: 28, height: 28 }} />
     </div>
@@ -82,6 +99,88 @@ const SecurityGauge = ({ score, label }) => {
         <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0, fontWeight: 600 }}>{label}</p>
       </div>
     </div>
+  );
+};
+
+const CriticalBanner = ({ count, t, onClick }) => (
+  <div 
+    className="animate-pulse"
+    style={{ 
+      backgroundColor: 'rgba(239, 68, 68, 0.1)', 
+      border: '1px solid var(--color-critical)', 
+      borderRadius: '12px', 
+      padding: '0.75rem 1.25rem', 
+      marginBottom: '1.5rem',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      cursor: 'pointer',
+      boxShadow: '0 0 15px rgba(239, 68, 68, 0.2)'
+    }}
+    onClick={onClick}
+  >
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+      <ShieldExclamationIcon style={{ width: 24, color: 'var(--color-critical)' }} />
+      <div>
+        <h4 style={{ margin: 0, fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-critical)' }}>
+          {t('dashboard.criticalAlertTitle') || 'CRITICAL INCIDENTS DETECTED'}
+        </h4>
+        <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+          {t('dashboard.criticalAlertSubtitle', { count }) || `${count} unacknowledged critical incidents require immediate attention`}
+        </p>
+      </div>
+    </div>
+    <button className="btn btn-primary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', backgroundColor: 'var(--color-critical)' }}>
+      {t('common.actions.viewAll')}
+    </button>
+  </div>
+);
+
+const IntelModal = ({ isOpen, onClose, ipData, t, onBlock }) => {
+  if (!ipData) return null;
+  return (
+    <Dialog open={isOpen} onClose={onClose} style={{ position: 'relative', zIndex: 1000 }}>
+      <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }} />
+      <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+        <Dialog.Panel className="card" style={{ width: '100%', maxWidth: '450px', padding: '1.5rem', backgroundColor: 'var(--bg-surface)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+            <Dialog.Title style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>{t('dashboard.attackerIntel') || 'Attacker Intelligence'}</Dialog.Title>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+              <XMarkIcon style={{ width: 24 }} />
+            </button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1rem', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '12px' }}>
+              <div>
+                <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>SOURCE IP</p>
+                <p style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700, color: 'var(--accent-color)' }}>{ipData.ip}</p>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>RISK LEVEL</p>
+                <span className={`badge badge-${ipData.risk}`}>{t(`common.severity.${ipData.risk}`)}</span>
+              </div>
+            </div>
+            <div>
+              <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>{t('dashboard.attackSummary') || 'Attack Summary'}</p>
+              <div style={{ padding: '0.75rem', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '0.8125rem' }}>
+                <p style={{ margin: '0 0 0.5rem' }}>• {t('dashboard.totalAttempts') || 'Total attempts detected'}: <strong>{ipData.count}</strong></p>
+                <p style={{ margin: 0 }}>• {t('dashboard.firstSeen') || 'First seen'}: <strong>2 hours ago</strong></p>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+              <button 
+                className="btn btn-primary" 
+                style={{ flex: 1, backgroundColor: 'var(--color-critical)' }}
+                onClick={() => { onBlock(ipData.ip); onClose(); }}
+              >
+                {t('common.actions.blockIp')}
+              </button>
+              <button className="btn btn-secondary" style={{ flex: 1 }} onClick={onClose}>{t('common.actions.cancel')}</button>
+            </div>
+          </div>
+        </Dialog.Panel>
+      </div>
+    </Dialog>
   );
 };
 
@@ -160,6 +259,7 @@ const LiveBuzz = () => {
 };
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const { formatDateTime, localizeApiMessage, t } = useLocalization();
   const { theme } = useTheme();
   const { socket } = useSocket();
@@ -167,11 +267,21 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [recent, setRecent] = useState([]);
+  const [trendData, setTrendData] = useState([]);
+  const [topAttackers, setTopAttackers] = useState([]);
+  const [selectedIp, setSelectedIp] = useState(null);
+  const [showHealthModal, setShowHealthModal] = useState(false);
 
   const fetchStats = useCallback(async () => {
     try {
-      const res = await axios.get('/api/dashboard/stats');
-      setStats(res.data.data);
+      const [statsRes, trendRes, attackersRes] = await Promise.all([
+        axios.get('/api/dashboard/stats'),
+        axios.get('/api/dashboard/trend'),
+        axios.get('/api/dashboard/top-attackers')
+      ]);
+      setStats(statsRes.data.data);
+      setTrendData(trendRes.data.data);
+      setTopAttackers(attackersRes.data.data);
       setError(null);
     } catch (err) {
       setError(localizeApiMessage(err?.response?.data?.message || err?.message, 'common.errors.generic'));
@@ -235,22 +345,14 @@ const Dashboard = () => {
     return Math.max(0, 100 - penalty);
   }, [stats]);
 
-  const trendData = [
-    { name: '00:00', val: 4 },
-    { name: '04:00', val: 7 },
-    { name: '08:00', val: 5 },
-    { name: '12:00', val: 12 },
-    { name: '16:00', val: 8 },
-    { name: '20:00', val: 15 },
-    { name: '23:59', val: 10 }
-  ];
-
-  const topAttackers = [
-    { ip: '192.168.1.45', count: 142, risk: 'high' },
-    { ip: '45.12.33.190', count: 89, risk: 'critical' },
-    { ip: '10.0.5.22', count: 64, risk: 'medium' },
-    { ip: '172.16.0.12', count: 31, risk: 'low' }
-  ];
+  const handleBlockIp = async (ip) => {
+    try {
+      await axios.post('/api/incidents/block-ip', { ip, reason: 'Dashboard Quick Block' });
+      toast.success(t('incidents.blockSuccess', { ip }));
+    } catch (err) {
+      toast.error(t('common.errors.blockIpFailed'));
+    }
+  };
 
   if (loading) {
     return <div className="loading" style={{ color: 'var(--accent-color)', fontWeight: 700 }}>{t('dashboard.loading')}</div>;
@@ -262,9 +364,27 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard-container">
+      {stats.severity.critical > 0 && (
+        <CriticalBanner 
+          count={stats.severity.critical} 
+          t={t} 
+          onClick={() => navigate('/incidents?severity=critical')} 
+        />
+      )}
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
-        <StatCard title={t('dashboard.totalIncidents')} value={stats.overview.totalIncidents} icon={ShieldExclamationIcon} color="var(--accent-color)" />
-        <div className="card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <StatCard 
+          title={t('dashboard.totalIncidents')} 
+          value={stats.overview.totalIncidents} 
+          icon={ShieldExclamationIcon} 
+          color="var(--accent-color)" 
+          onClick={() => navigate('/incidents')}
+        />
+        <div 
+          className="card cursor-pointer" 
+          onClick={() => setShowHealthModal(true)}
+          style={{ padding: '1rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}
+        >
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: 500, textAlign: 'center', marginBottom: '0.5rem' }}>{t('dashboard.securityPosture')}</p>
           <SecurityGauge score={securityScore} label={t('dashboard.systemHealthGauge')} />
         </div>
@@ -274,8 +394,15 @@ const Dashboard = () => {
           icon={ClockIcon}
           color="var(--color-medium)"
           trend={{ color: 'var(--color-medium)', label: t('dashboard.sinceLastHour', { trend: '+2' }) }}
+          onClick={() => navigate('/incidents?status=investigating')}
         />
-        <StatCard title={t('dashboard.systemResolved')} value={stats.overview.resolvedIncidents} icon={CheckBadgeIcon} color="var(--color-low)" />
+        <StatCard 
+          title={t('dashboard.systemResolved')} 
+          value={stats.overview.resolvedIncidents} 
+          icon={CheckBadgeIcon} 
+          color="var(--color-low)" 
+          onClick={() => navigate('/incidents?status=resolved')}
+        />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
@@ -308,7 +435,12 @@ const Dashboard = () => {
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {topAttackers.map((attacker) => (
-              <div key={attacker.ip} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
+              <div 
+                key={attacker.ip} 
+                className="cursor-pointer hover:bg-white/10 transition-colors"
+                onClick={() => setSelectedIp(attacker)}
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}
+              >
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{attacker.ip}</span>
                   <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{t('dashboard.attemptsDetected', { count: attacker.count })}</span>
@@ -321,24 +453,87 @@ const Dashboard = () => {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
-        <div className="card">
-          <h3 style={{ marginBottom: '1rem', fontSize: '1rem' }}>{t('dashboard.severityMatrix')}</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <PieChart>
-              <Pie data={severityData} dataKey="value" innerRadius={50} outerRadius={70} paddingAngle={5}>
-                {severityData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
-                ))}
-              </Pie>
-              <Tooltip contentStyle={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--border-color)', borderRadius: '8px' }} />
-            </PieChart>
-          </ResponsiveContainer>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', justifyContent: 'center' }}>
+        <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
+          <h3 style={{ marginBottom: '1rem', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <boltIcon style={{ width: 18, color: 'var(--accent-color)' }} />
+            {t('dashboard.severityMatrix')}
+          </h3>
+          <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie 
+                  data={severityData} 
+                  dataKey="value" 
+                  innerRadius={65} 
+                  outerRadius={85} 
+                  paddingAngle={5}
+                  stroke="none"
+                  onClick={(data) => {
+                    const sev = data.name.toLowerCase();
+                    navigate(`/incidents?severity=${sev}`);
+                  }}
+                  className="cursor-pointer"
+                >
+                  {severityData.map((entry, index) => (
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={entry.color} 
+                      style={{ filter: 'drop-shadow(0 0 4px rgba(0,0,0,0.2))' }}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'var(--bg-surface)', 
+                    borderColor: 'var(--border-color)', 
+                    borderRadius: '12px',
+                    boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'
+                  }} 
+                />
+              </PieChart>
+            </ResponsiveContainer>
+            
+            {/* Center Text for Donut */}
+            <div style={{ 
+              position: 'absolute', 
+              top: '46%', 
+              left: '50%', 
+              transform: 'translate(-50%, -50%)', 
+              textAlign: 'center',
+              pointerEvents: 'none'
+            }}>
+              <span style={{ fontSize: '1.75rem', fontWeight: 800, display: 'block', color: 'var(--text-primary)' }}>
+                {stats.overview.totalIncidents}
+              </span>
+              <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', fontWeight: 600 }}>
+                {t('common.table.total') || 'Total'}
+              </span>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'center', marginTop: '0.5rem' }}>
             {severityData.map((severity) => (
-              <div key={severity.name} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem' }}>
-                <div style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: severity.color }} />
-                <span style={{ color: 'var(--text-secondary)' }}>{severity.name}</span>
-              </div>
+              <button 
+                key={severity.name} 
+                onClick={() => navigate(`/incidents?severity=${severity.name.toLowerCase()}`)}
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.4rem', 
+                  fontSize: '0.75rem',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '4px 8px',
+                  borderRadius: '6px',
+                  transition: 'background 0.2s'
+                }}
+                className="hover:bg-white/5"
+              >
+                <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: severity.color }} />
+                <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{severity.name}</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>({severity.value})</span>
+              </button>
             ))}
           </div>
         </div>
@@ -375,6 +570,48 @@ const Dashboard = () => {
           </MapContainer>
         </div>
       </div>
+
+      <IntelModal 
+        isOpen={!!selectedIp} 
+        onClose={() => setSelectedIp(null)} 
+        ipData={selectedIp} 
+        t={t}
+        onBlock={handleBlockIp}
+      />
+
+      <Dialog open={showHealthModal} onClose={() => setShowHealthModal(false)} style={{ position: 'relative', zIndex: 1000 }}>
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }} />
+        <div style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <Dialog.Panel className="card" style={{ width: '100%', maxWidth: '450px', padding: '1.5rem', backgroundColor: 'var(--bg-surface)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <Dialog.Title style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>{t('dashboard.securityHealthReport') || 'Security Health Report'}</Dialog.Title>
+              <button onClick={() => setShowHealthModal(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                <XMarkIcon style={{ width: 24 }} />
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ textAlign: 'center', padding: '1rem' }}>
+                <div style={{ fontSize: '3rem', fontWeight: 800, color: securityScore > 80 ? 'var(--color-low)' : 'var(--color-critical)' }}>{securityScore}%</div>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Overall System Health Score</p>
+              </div>
+              <div style={{ padding: '1rem', border: '1px solid var(--border-color)', borderRadius: '12px' }}>
+                <h5 style={{ margin: '0 0 0.75rem', fontSize: '0.875rem' }}>Active Risk Factors</h5>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+                    <span>Critical Incidents</span>
+                    <span style={{ color: 'var(--color-critical)', fontWeight: 700 }}>-{stats.severity.critical * 15} pts</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+                    <span>High Severity Incidents</span>
+                    <span style={{ color: 'var(--color-high)', fontWeight: 700 }}>-{stats.severity.high * 8} pts</span>
+                  </div>
+                </div>
+              </div>
+              <button className="btn btn-primary" onClick={() => setShowHealthModal(false)}>{t('common.actions.viewAll')}</button>
+            </div>
+          </Dialog.Panel>
+        </div>
+      </Dialog>
     </div>
   );
 };

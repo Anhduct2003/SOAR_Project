@@ -74,7 +74,8 @@ const vi = {
       name: 'Tên',
       role: 'Vai trò',
       department: 'Phòng ban',
-      actions: 'Thao tác'
+      actions: 'Thao tác',
+      total: 'Tổng số'
     },
     messages: {
       noData: 'Không có dữ liệu.',
@@ -151,7 +152,14 @@ const vi = {
     severityMatrix: 'Ma trận mức độ',
     geographicalMap: 'Bản đồ đe dọa theo khu vực',
     localizationOn: 'Bản địa hóa: bật',
-    popupSeverity: 'Mức độ'
+    popupSeverity: 'Mức độ',
+    criticalAlertTitle: 'PHÁT HIỆN SỰ CỐ NGHIÊM TRỌNG',
+    criticalAlertSubtitle: '{{count}} sự cố nghiêm trọng chưa xác nhận cần được xử lý ngay lập tức',
+    attackerIntel: 'Hồ sơ đối tượng tấn công',
+    attackSummary: 'Tóm tắt hành vi',
+    totalAttempts: 'Tổng số lần thử',
+    firstSeen: 'Lần đầu xuất hiện',
+    securityHealthReport: 'Báo cáo sức khỏe hệ thống'
   },
   alerts: {
     highCritical: 'Cao + Nghiêm trọng',

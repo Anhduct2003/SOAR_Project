@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
 const Incident = require('../models/Incident');
+const Alert = require('../models/Alert');
+const mongoose = require('mongoose');
 
 /**
  * @swagger
@@ -253,7 +255,7 @@ router.get('/recent-incidents', protect, async (req, res) => {
     const recentIncidents = await Incident.find()
       .sort({ createdAt: -1 })
       .limit(limit)
-      .select('title description severity status category createdAt affectedSystems')
+      .select('title description severity status category createdAt affectedSystems location')
       .populate('createdBy', 'name email')
       .lean();
 
@@ -269,6 +271,98 @@ router.get('/recent-incidents', protect, async (req, res) => {
       message: 'Lỗi khi tải sự cố gần đây',
       error: error.message
     });
+  }
+});
+
+// Get incident trends for the last 24 hours
+router.get('/trend', protect, async (req, res) => {
+  try {
+    const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    const trends = await Incident.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: last24Hours }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: "%Y-%m-%d %H:00", date: "$createdAt" }
+          },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { "_id": 1 } }
+    ]);
+
+    // Fill in missing hours
+    const result = [];
+    for (let i = 23; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 60 * 60 * 1000);
+      const hourStr = d.toISOString().substring(0, 13) + ":00";
+      const displayHour = `${d.getHours().toString().padStart(2, '0')}:00`;
+      
+      const found = trends.find(t => t._id.startsWith(d.toISOString().substring(0, 13)));
+      result.push({
+        name: displayHour,
+        val: found ? found.count : 0
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Get top attackers from alerts
+router.get('/top-attackers', protect, async (req, res) => {
+  try {
+    const attackers = await Alert.aggregate([
+      {
+        $match: {
+          sourceIp: { $exists: true, $ne: null, $ne: "" }
+        }
+      },
+      {
+        $group: {
+          _id: "$sourceIp",
+          count: { $sum: 1 },
+          risk: {
+            $max: {
+              $switch: {
+                branches: [
+                  { case: { $eq: ["$severity", "critical"] }, then: 4 },
+                  { case: { $eq: ["$severity", "high"] }, then: 3 },
+                  { case: { $eq: ["$severity", "medium"] }, then: 2 },
+                  { case: { $eq: ["$severity", "low"] }, then: 1 }
+                ],
+                default: 0
+              }
+            }
+          }
+        }
+      },
+      { $sort: { count: -1 } },
+      { $limit: 5 }
+    ]);
+
+    const mappedAttackers = attackers.map(a => ({
+      ip: a._id,
+      count: a.count,
+      risk: a.risk === 4 ? 'critical' : a.risk === 3 ? 'high' : a.risk === 2 ? 'medium' : 'low'
+    }));
+
+    res.json({
+      success: true,
+      data: mappedAttackers
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
