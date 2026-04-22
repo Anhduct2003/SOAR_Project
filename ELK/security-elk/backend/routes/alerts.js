@@ -76,8 +76,6 @@ router.get('/', protect, async (req, res) => {
   }
 });
 
-module.exports = router;
-
 /**
  * Webhook để nhận alert từ ElastAlert và tự động tạo Incident
  * Không yêu cầu auth vì được gọi nội bộ trong docker network
@@ -120,7 +118,7 @@ router.post('/webhook', async (req, res) => {
     const incident = await Incident.create({
       title,
       description,
-      severity: ['low','medium','high','critical'].includes(severity) ? severity : 'high',
+      severity: ['low', 'medium', 'high', 'critical'].includes(severity) ? severity : 'high',
       category,
       source: 'automated',
       ipAddresses: uniqueIps,
@@ -138,7 +136,7 @@ router.post('/webhook', async (req, res) => {
         category: incident.category,
         createdAt: incident.createdAt
       });
-    } catch (e) {}
+    } catch (e) { }
 
     // Telegram notification (nếu cấu hình)
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -148,7 +146,7 @@ router.post('/webhook', async (req, res) => {
         `🚨 Incident: ${title}\nSeverity: ${severity}\nCategory: ${category}\nIPs: ${uniqueIps.join(', ') || 'N/A'}\nTime: ${new Date().toISOString()}`
       );
       const tgUrl = `https://api.telegram.org/bot${botToken}/sendMessage?chat_id=${chatId}&text=${text}`;
-      https.get(tgUrl).on('error', () => {});
+      https.get(tgUrl).on('error', () => { });
     }
 
     res.json({ success: true, id: incident._id });
@@ -156,3 +154,5 @@ router.post('/webhook', async (req, res) => {
     res.status(500).json({ success: false, message: 'Webhook error', error: error.message });
   }
 });
+
+module.exports = router;

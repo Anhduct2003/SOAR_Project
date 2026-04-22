@@ -3,6 +3,7 @@ const router = express.Router();
 const Incident = require('../models/Incident');
 const BlockedIP = require('../models/BlockedIP');
 const { protect } = require('../middleware/auth');
+const { validateIncident } = require('../middleware/validator');
 
 // Simple validation helpers (avoid extra deps)
 const VALID_SEVERITIES = ['low', 'medium', 'high', 'critical'];
@@ -92,19 +93,24 @@ router.get('/', protect, async (req, res, next) => {
     }
     if (req.query.q) {
       const q = String(req.query.q).trim();
-      filter.$or = [
-        { title: { $regex: q, $options: 'i' } },
-        { description: { $regex: q, $options: 'i' } },
-        { category: { $regex: q, $options: 'i' } },
-        { tags: { $regex: q, $options: 'i' } }
-      ];
+      // Use $text full-text search index for better performance
+      filter.$text = { $search: q };
     }
 
-    const sortField = ['createdAt','severity','status','category','detectedAt'].includes(req.query.sortBy) ? req.query.sortBy : 'createdAt';
+    const sortField = ['createdAt', 'severity', 'status', 'category', 'detectedAt'].includes(req.query.sortBy) ? req.query.sortBy : 'createdAt';
     const sortDir = req.query.sortDir === 'asc' ? 1 : -1;
 
+    // When using $text search, sort by textScore first
+    const sortObj = req.query.q ? { score: { $meta: 'textScore' }, [sortField]: sortDir } : { [sortField]: sortDir };
+    const selectFields = req.query.q ? 'title description severity status category createdAt affectedSystems score' : undefined;
+
     const [incidents, total] = await Promise.all([
-      Incident.find(filter).sort({ [sortField]: sortDir }).skip(skip).limit(limit),
+      Incident.find(filter)
+        .sort(sortObj)
+        .skip(skip)
+        .limit(limit)
+        .select(selectFields)
+        .lean(),
       Incident.countDocuments(filter)
     ]);
 
@@ -207,7 +213,7 @@ router.get('/', protect, async (req, res, next) => {
  *               $ref: '#/components/schemas/ErrorResponse'
  */
 // POST /api/incidents
-router.post('/', protect, async (req, res, next) => {
+router.post('/', protect, validateIncident, async (req, res, next) => {
   try {
     const validationErrors = validateIncidentBody(req.body);
     if (validationErrors.length > 0) {
@@ -312,7 +318,7 @@ router.put('/:id', protect, async (req, res, next) => {
 });
 
 module.exports = router;
- 
+
 /**
  * @swagger
  * /api/incidents/bulk-status:
@@ -346,7 +352,7 @@ router.put('/bulk-status', protect, async (req, res, next) => {
     if (!Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({ success: false, message: 'ids không hợp lệ' });
     }
-    const VALID_STATUS = ['open','investigating','contained','resolved','closed'];
+    const VALID_STATUS = ['open', 'investigating', 'contained', 'resolved', 'closed'];
     if (!VALID_STATUS.includes(status)) {
       return res.status(400).json({ success: false, message: 'status không hợp lệ' });
     }

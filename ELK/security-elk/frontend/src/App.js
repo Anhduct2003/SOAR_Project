@@ -2,8 +2,9 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { Toaster } from 'react-hot-toast';
-import './utils/axiosConfig'; // Import cấu hình Axios
+import './utils/axiosConfig';
 import { AuthProvider } from './contexts/AuthContext';
+import { LocalizationProvider } from './contexts/LocalizationContext';
 import { SocketProvider } from './contexts/SocketContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import PrivateRoute from './components/PrivateRoute';
@@ -12,17 +13,17 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Incidents from './pages/Incidents';
 import Alerts from './pages/Alerts';
+import Departments from './pages/Departments';
 import Users from './pages/Users';
 import Settings from './pages/Settings';
 import './App.css';
 
-// Tạo React Query client
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
       refetchOnWindowFocus: false,
-      staleTime: 5 * 60 * 1000, // 5 phút
+      staleTime: 5 * 60 * 1000,
     },
   },
 });
@@ -30,60 +31,62 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <AuthProvider>
-          <SocketProvider>
-            <Router>
-              <div className="App">
-                <Routes>
-                  {/* Public routes */}
-                  <Route path="/login" element={<Login />} />
-                  
-                  {/* Protected routes */}
-                  <Route path="/" element={
-                    <PrivateRoute>
-                      <Layout />
-                    </PrivateRoute>
-                  }>
-                    <Route index element={<Dashboard />} />
-                    <Route path="dashboard" element={<Dashboard />} />
-                    <Route path="incidents" element={<Incidents />} />
-                    <Route path="alerts" element={<Alerts />} />
-                    <Route path="users" element={<Users />} />
-                    <Route path="settings" element={<Settings />} />
-                  </Route>
-                </Routes>
-                
-                {/* Toast notifications */}
-                <Toaster
-                  position="top-right"
-                  toastOptions={{
-                    duration: 4000,
-                    style: {
-                      background: '#363636',
-                      color: '#fff',
-                    },
-                    success: {
-                      duration: 3000,
-                      iconTheme: {
-                        primary: '#10B981',
-                        secondary: '#fff',
+      <LocalizationProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <SocketProvider>
+              <Router>
+                <div className="App">
+                  <Routes>
+                    <Route path="/login" element={<Login />} />
+                    <Route
+                      path="/"
+                      element={
+                        <PrivateRoute>
+                          <Layout />
+                        </PrivateRoute>
+                      }
+                    >
+                      <Route index element={<Dashboard />} />
+                      <Route path="dashboard" element={<Dashboard />} />
+                      <Route path="incidents" element={<Incidents />} />
+                      <Route path="alerts" element={<Alerts />} />
+                      <Route path="departments" element={<Departments />} />
+                      <Route path="users" element={<Users />} />
+                      <Route path="settings" element={<Settings />} />
+                    </Route>
+                  </Routes>
+
+                  <Toaster
+                    position="top-right"
+                    toastOptions={{
+                      duration: 4000,
+                      style: {
+                        background: '#363636',
+                        color: '#fff',
                       },
-                    },
-                    error: {
-                      duration: 5000,
-                      iconTheme: {
-                        primary: '#EF4444',
-                        secondary: '#fff',
+                      success: {
+                        duration: 3000,
+                        iconTheme: {
+                          primary: '#10B981',
+                          secondary: '#fff',
+                        },
                       },
-                    },
-                  }}
-                />
-              </div>
-            </Router>
-          </SocketProvider>
-        </AuthProvider>
-      </ThemeProvider>
+                      error: {
+                        duration: 5000,
+                        iconTheme: {
+                          primary: '#EF4444',
+                          secondary: '#fff',
+                        },
+                      },
+                    }}
+                  />
+                </div>
+              </Router>
+            </SocketProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </LocalizationProvider>
     </QueryClientProvider>
   );
 }

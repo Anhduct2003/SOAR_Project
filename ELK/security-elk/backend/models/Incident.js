@@ -55,7 +55,7 @@ const incidentSchema = new mongoose.Schema({
   ipAddresses: [{
     type: String,
     validate: {
-      validator: function(v) {
+      validator: function (v) {
         return /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(v);
       },
       message: 'IP address không hợp lệ'
@@ -158,6 +158,19 @@ const incidentSchema = new mongoose.Schema({
       default: false
     }
   }],
+  evidence: [{
+    type: {
+      type: String,
+      enum: ['log', 'screenshot', 'file', 'network_capture', 'other']
+    },
+    filename: String,
+    description: String,
+    url: String,
+    uploadedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   relatedIncidents: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Incident'
@@ -192,7 +205,7 @@ const incidentSchema = new mongoose.Schema({
 });
 
 // Virtual field cho duration
-incidentSchema.virtual('duration').get(function() {
+incidentSchema.virtual('duration').get(function () {
   if (this.resolvedAt) {
     return this.resolvedAt - this.detectedAt;
   }
@@ -200,7 +213,7 @@ incidentSchema.virtual('duration').get(function() {
 });
 
 // Virtual field cho isResolved
-incidentSchema.virtual('isResolved').get(function() {
+incidentSchema.virtual('isResolved').get(function () {
   return this.status === 'resolved' || this.status === 'closed';
 });
 
@@ -209,11 +222,42 @@ incidentSchema.index({ severity: 1, status: 1 });
 incidentSchema.index({ category: 1, detectedAt: -1 });
 incidentSchema.index({ assignedTo: 1, status: 1 });
 incidentSchema.index({ detectedAt: -1 });
+incidentSchema.index({ createdAt: -1 }); // Dashboard "last 24h" và sorting
 incidentSchema.index({ 'location.country': 1, 'location.city': 1 });
 incidentSchema.index({ tags: 1 });
+incidentSchema.index({ title: 'text', description: 'text', tags: 'text' }); // Full-text search
 
-// Middleware trước khi save - cập nhật timeline
-incidentSchema.pre('save', function(next) {
+// TTL index: tự động xóa incidents đã resolved sau 1 năm (365 ngày)
+// Chỉ áp dụng cho incidents có status = 'resolved' và resolvedAt tồn tại
+incidentSchema.index(
+  { resolvedAt: 1 },
+  {
+    expireAfterSeconds: 365 * 24 * 60 * 60, // 365 days
+    partialFilterExpression: { status: { $in: ['resolved', 'closed'] } },
+  }
+);
+
+// Middleware trước khi save - cập nhật timeline và validate array sizes
+const MAX_TIMELINE_ENTRIES = 500;
+const MAX_NOTES_ENTRIES = 200;
+const MAX_EVIDENCE_ENTRIES = 100;
+
+incidentSchema.pre('save', function (next) {
+  // Giới hạn số lượng timeline entries
+  if (this.timeline && this.timeline.length > MAX_TIMELINE_ENTRIES) {
+    this.timeline = this.timeline.slice(-MAX_TIMELINE_ENTRIES);
+  }
+
+  // Giới hạn số lượng notes entries
+  if (this.notes && this.notes.length > MAX_NOTES_ENTRIES) {
+    this.notes = this.notes.slice(-MAX_NOTES_ENTRIES);
+  }
+
+  // Giới hạn số lượng evidence entries
+  if (this.evidence && this.evidence.length > MAX_EVIDENCE_ENTRIES) {
+    this.evidence = this.evidence.slice(-MAX_EVIDENCE_ENTRIES);
+  }
+
   if (this.isNew) {
     this.timeline.push({
       action: 'incident_created',
@@ -231,17 +275,17 @@ incidentSchema.pre('save', function(next) {
 });
 
 // Static method để tìm incidents theo severity
-incidentSchema.statics.findBySeverity = function(severity) {
+incidentSchema.statics.findBySeverity = function (severity) {
   return this.find({ severity });
 };
 
 // Static method để tìm open incidents
-incidentSchema.statics.findOpen = function() {
+incidentSchema.statics.findOpen = function () {
   return this.find({ status: { $in: ['open', 'investigating'] } });
 };
 
 // Static method để tìm incidents trong khoảng thời gian
-incidentSchema.statics.findByDateRange = function(startDate, endDate) {
+incidentSchema.statics.findByDateRange = function (startDate, endDate) {
   return this.find({
     detectedAt: {
       $gte: startDate,
@@ -251,7 +295,7 @@ incidentSchema.statics.findByDateRange = function(startDate, endDate) {
 };
 
 // Method để thêm note
-incidentSchema.methods.addNote = function(content, author, isPrivate = false) {
+incidentSchema.methods.addNote = function (content, author, isPrivate = false) {
   this.notes.push({
     content,
     author,
@@ -261,14 +305,14 @@ incidentSchema.methods.addNote = function(content, author, isPrivate = false) {
 };
 
 // Method để update status
-incidentSchema.methods.updateStatus = function(newStatus, updatedBy) {
+incidentSchema.methods.updateStatus = function (newStatus, updatedBy) {
   this.status = newStatus;
   this.updatedBy = updatedBy;
-  
+
   if (newStatus === 'resolved' || newStatus === 'closed') {
     this.resolvedAt = Date.now();
   }
-  
+
   return this.save();
 };
 

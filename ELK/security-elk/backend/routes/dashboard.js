@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
 const Incident = require('../models/Incident');
+const Alert = require('../models/Alert');
+const mongoose = require('mongoose');
 
 /**
  * @swagger
@@ -67,51 +69,48 @@ const Incident = require('../models/Incident');
 // Get dashboard statistics
 router.get('/stats', protect, async (req, res) => {
   try {
-    // Get total incidents count
-    const totalIncidents = await Incident.countDocuments();
-    
-    // Get incidents by status
-    const openIncidents = await Incident.countDocuments({ status: 'open' });
-    const investigatingIncidents = await Incident.countDocuments({ status: 'investigating' });
-    const containedIncidents = await Incident.countDocuments({ status: 'contained' });
-    const resolvedIncidents = await Incident.countDocuments({ status: 'resolved' });
-    const closedIncidents = await Incident.countDocuments({ status: 'closed' });
-    
-    // Get incidents by severity
-    const lowSeverity = await Incident.countDocuments({ severity: 'low' });
-    const mediumSeverity = await Incident.countDocuments({ severity: 'medium' });
-    const highSeverity = await Incident.countDocuments({ severity: 'high' });
-    const criticalSeverity = await Incident.countDocuments({ severity: 'critical' });
-    
-    // Get incidents by category
-    const categoryStats = await Incident.aggregate([
-      {
-        $group: {
-          _id: '$category',
-          count: { $sum: 1 }
-        }
-      }
-    ]);
-    
-    // Get recent incidents (last 24 hours)
     const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const recentIncidents = await Incident.countDocuments({
-      createdAt: { $gte: last24Hours }
-    });
-    
-    // Get incidents created today
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const todayIncidents = await Incident.countDocuments({
-      createdAt: { $gte: today }
-    });
-    
-    // Calculate resolution time average for resolved incidents
-    const resolvedIncidentsWithDates = await Incident.find({
-      status: 'resolved',
-      resolvedAt: { $exists: true }
-    }).select('createdAt resolvedAt');
-    
+
+    // Single aggregation pipeline replaces 9+ separate countDocuments() calls
+    const [statsResult, resolvedIncidentsWithDates] = await Promise.all([
+      Incident.aggregate([
+        {
+          $group: {
+            _id: null,
+            total: { $sum: 1 },
+            open: { $sum: { $cond: [{ $eq: ['$status', 'open'] }, 1, 0] } },
+            investigating: { $sum: { $cond: [{ $eq: ['$status', 'investigating'] }, 1, 0] } },
+            contained: { $sum: { $cond: [{ $eq: ['$status', 'contained'] }, 1, 0] } },
+            resolved: { $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] } },
+            closed: { $sum: { $cond: [{ $eq: ['$status', 'closed'] }, 1, 0] } },
+            low: { $sum: { $cond: [{ $eq: ['$severity', 'low'] }, 1, 0] } },
+            medium: { $sum: { $cond: [{ $eq: ['$severity', 'medium'] }, 1, 0] } },
+            high: { $sum: { $cond: [{ $eq: ['$severity', 'high'] }, 1, 0] } },
+            critical: { $sum: { $cond: [{ $eq: ['$severity', 'critical'] }, 1, 0] } },
+            last24Hours: { $sum: { $cond: [{ $gte: ['$createdAt', last24Hours] }, 1, 0] } },
+            today: { $sum: { $cond: [{ $gte: ['$createdAt', today] }, 1, 0] } },
+          }
+        }
+      ]),
+      // Resolution time calculation (separate query since it needs date arithmetic)
+      Incident.find({ status: 'resolved', resolvedAt: { $exists: true } })
+        .select('createdAt resolvedAt')
+        .lean(),
+    ]);
+
+    const overview = statsResult[0] || {
+      total: 0, open: 0, investigating: 0, contained: 0,
+      resolved: 0, closed: 0, low: 0, medium: 0, high: 0,
+      critical: 0, last24Hours: 0, today: 0,
+    };
+
+    // Category stats (separate aggregation since it needs different grouping)
+    const categoryStats = await Incident.aggregate([
+      { $group: { _id: '$category', count: { $sum: 1 } } }
+    ]);
+
     let avgResolutionTime = 0;
     if (resolvedIncidentsWithDates.length > 0) {
       const totalResolutionTime = resolvedIncidentsWithDates.reduce((sum, incident) => {
@@ -119,46 +118,45 @@ router.get('/stats', protect, async (req, res) => {
       }, 0);
       avgResolutionTime = Math.round(totalResolutionTime / resolvedIncidentsWithDates.length / (1000 * 60 * 60)); // hours
     }
-    
+
     const stats = {
       overview: {
-        totalIncidents,
-        openIncidents,
-        investigatingIncidents,
-        containedIncidents,
-        resolvedIncidents,
-        closedIncidents,
-        recentIncidents,
-        todayIncidents,
-        avgResolutionTime
+        totalIncidents: overview.total,
+        openIncidents: overview.open,
+        investigatingIncidents: overview.investigating,
+        containedIncidents: overview.contained,
+        resolvedIncidents: overview.resolved,
+        closedIncidents: overview.closed,
+        recentIncidents: overview.last24Hours,
+        todayIncidents: overview.today,
+        avgResolutionTime,
       },
       severity: {
-        low: lowSeverity,
-        medium: mediumSeverity,
-        high: highSeverity,
-        critical: criticalSeverity
+        low: overview.low,
+        medium: overview.medium,
+        high: overview.high,
+        critical: overview.critical,
       },
       categories: categoryStats.reduce((acc, item) => {
         acc[item._id] = item.count;
         return acc;
       }, {}),
       trends: {
-        last24Hours: recentIncidents,
-        today: todayIncidents
-      }
+        last24Hours: overview.last24Hours,
+        today: overview.today,
+      },
     };
-    
+
     res.json({
       success: true,
-      data: stats
+      data: stats,
     });
-    
   } catch (error) {
     console.error('Error fetching dashboard stats:', error);
     res.status(500).json({
       success: false,
       message: 'Lỗi khi tải thống kê dashboard',
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -253,18 +251,19 @@ router.get('/stats', protect, async (req, res) => {
 router.get('/recent-incidents', protect, async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
-    
+
     const recentIncidents = await Incident.find()
       .sort({ createdAt: -1 })
       .limit(limit)
-      .select('title description severity status category createdAt affectedSystems')
-      .populate('createdBy', 'name email');
-    
+      .select('title description severity status category createdAt affectedSystems location')
+      .populate('createdBy', 'name email')
+      .lean();
+
     res.json({
       success: true,
       data: recentIncidents
     });
-    
+
   } catch (error) {
     console.error('Error fetching recent incidents:', error);
     res.status(500).json({
@@ -272,6 +271,98 @@ router.get('/recent-incidents', protect, async (req, res) => {
       message: 'Lỗi khi tải sự cố gần đây',
       error: error.message
     });
+  }
+});
+
+// Get incident trends for the last 24 hours
+router.get('/trend', protect, async (req, res) => {
+  try {
+    const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    const trends = await Incident.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: last24Hours }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: "%Y-%m-%d %H:00", date: "$createdAt" }
+          },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { "_id": 1 } }
+    ]);
+
+    // Fill in missing hours
+    const result = [];
+    for (let i = 23; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 60 * 60 * 1000);
+      const hourStr = d.toISOString().substring(0, 13) + ":00";
+      const displayHour = `${d.getHours().toString().padStart(2, '0')}:00`;
+      
+      const found = trends.find(t => t._id.startsWith(d.toISOString().substring(0, 13)));
+      result.push({
+        name: displayHour,
+        val: found ? found.count : 0
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Get top attackers from alerts
+router.get('/top-attackers', protect, async (req, res) => {
+  try {
+    const attackers = await Alert.aggregate([
+      {
+        $match: {
+          sourceIp: { $exists: true, $ne: null, $ne: "" }
+        }
+      },
+      {
+        $group: {
+          _id: "$sourceIp",
+          count: { $sum: 1 },
+          risk: {
+            $max: {
+              $switch: {
+                branches: [
+                  { case: { $eq: ["$severity", "critical"] }, then: 4 },
+                  { case: { $eq: ["$severity", "high"] }, then: 3 },
+                  { case: { $eq: ["$severity", "medium"] }, then: 2 },
+                  { case: { $eq: ["$severity", "low"] }, then: 1 }
+                ],
+                default: 0
+              }
+            }
+          }
+        }
+      },
+      { $sort: { count: -1 } },
+      { $limit: 5 }
+    ]);
+
+    const mappedAttackers = attackers.map(a => ({
+      ip: a._id,
+      count: a.count,
+      risk: a.risk === 4 ? 'critical' : a.risk === 3 ? 'high' : a.risk === 2 ? 'medium' : 'low'
+    }));
+
+    res.json({
+      success: true,
+      data: mappedAttackers
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 

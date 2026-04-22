@@ -11,10 +11,73 @@
  *         email:
  *           type: string
  *           format: email
- *           example: "admin@admin.com"
+ *           example: "admin@security.local"
  *         password:
  *           type: string
  *           example: "admin123"
+ *     DepartmentDetails:
+ *       type: object
+ *       nullable: true
+ *       properties:
+ *         id:
+ *           type: string
+ *           example: "69df3b3fd7d1b53419bd0764"
+ *         name:
+ *           type: string
+ *           example: "IT Security"
+ *         code:
+ *           type: string
+ *           example: "IT_SECURITY"
+ *         isActive:
+ *           type: boolean
+ *           example: true
+ *     UserProfile:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           example: "69de10b99483fb26418de666"
+ *         username:
+ *           type: string
+ *           example: "admin"
+ *         email:
+ *           type: string
+ *           format: email
+ *           example: "admin@security.local"
+ *         firstName:
+ *           type: string
+ *           example: "System"
+ *         lastName:
+ *           type: string
+ *           example: "Administrator"
+ *         role:
+ *           type: string
+ *           enum: [admin, analyst, viewer]
+ *           example: "admin"
+ *         department:
+ *           type: string
+ *           nullable: true
+ *           description: Legacy display name kept for compatibility
+ *           example: "IT Security"
+ *         departmentId:
+ *           type: string
+ *           nullable: true
+ *           example: "69df3b3fd7d1b53419bd0764"
+ *         departmentDetails:
+ *           $ref: '#/components/schemas/DepartmentDetails'
+ *         isActive:
+ *           type: boolean
+ *           example: true
+ *         lastLogin:
+ *           type: string
+ *           format: date-time
+ *           nullable: true
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
  */
 
 /**
@@ -22,8 +85,8 @@
  * /api/auth/register:
  *   post:
  *     tags: [Authentication]
- *     summary: Đăng ký user mới
- *     description: Tạo tài khoản user mới trong hệ thống
+ *     summary: Register a new user
+ *     description: Creates a new user account and returns a JWT token.
  *     requestBody:
  *       required: true
  *       content:
@@ -48,8 +111,8 @@
  *                 example: "analyst@company.com"
  *               password:
  *                 type: string
- *                 minLength: 6
- *                 example: "securepass123"
+ *                 minLength: 8
+ *                 example: "SecurePass123!"
  *               firstName:
  *                 type: string
  *                 example: "John"
@@ -58,7 +121,13 @@
  *                 example: "Doe"
  *               department:
  *                 type: string
+ *                 description: Legacy department name. Optional when departmentId is used.
  *                 example: "IT Security"
+ *               departmentId:
+ *                 type: string
+ *                 nullable: true
+ *                 description: Optional canonical department reference.
+ *                 example: "69df3b3fd7d1b53419bd0764"
  *               role:
  *                 type: string
  *                 enum: [admin, analyst, viewer]
@@ -66,17 +135,21 @@
  *                 example: "analyst"
  *     responses:
  *       201:
- *         description: User được tạo thành công
+ *         description: User created successfully
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/AuthResponse'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 token:
+ *                   type: string
+ *                 user:
+ *                   $ref: '#/components/schemas/UserProfile'
  *       400:
- *         description: User đã tồn tại hoặc dữ liệu không hợp lệ
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *         description: Invalid payload or duplicate user
  */
 
 /**
@@ -84,8 +157,8 @@
  * /api/auth/login:
  *   post:
  *     tags: [Authentication]
- *     summary: Đăng nhập user
- *     description: Xác thực user và trả về JWT token
+ *     summary: Log in a user
+ *     description: Validates credentials and returns a JWT token plus user profile.
  *     requestBody:
  *       required: true
  *       content:
@@ -94,23 +167,21 @@
  *             $ref: '#/components/schemas/LoginRequest'
  *     responses:
  *       200:
- *         description: Đăng nhập thành công
+ *         description: Login successful
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/AuthResponse'
- *       400:
- *         description: Thiếu email hoặc password
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 token:
+ *                   type: string
+ *                 user:
+ *                   $ref: '#/components/schemas/UserProfile'
  *       401:
- *         description: Thông tin đăng nhập không hợp lệ
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *         description: Invalid credentials or disabled account
  */
 
 /**
@@ -118,13 +189,12 @@
  * /api/auth/me:
  *   get:
  *     tags: [Authentication]
- *     summary: Lấy thông tin user hiện tại
- *     description: Trả về thông tin chi tiết của user đã đăng nhập
+ *     summary: Get current user profile
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Thông tin user thành công
+ *         description: Current authenticated user
  *         content:
  *           application/json:
  *             schema:
@@ -134,22 +204,14 @@
  *                   type: boolean
  *                   example: true
  *                 user:
- *                   $ref: '#/components/schemas/User'
+ *                   $ref: '#/components/schemas/UserProfile'
  *       401:
- *         description: Token không hợp lệ hoặc hết hạn
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- */
-
-/**
- * @swagger
- * /api/auth/me:
+ *         description: Invalid or expired token
+ *
  *   put:
  *     tags: [Authentication]
- *     summary: Cập nhật thông tin user
- *     description: Cập nhật thông tin cá nhân của user đang đăng nhập
+ *     summary: Update current user profile
+ *     description: Updates the current user's editable profile fields.
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -170,7 +232,7 @@
  *                 example: "Cyber Security"
  *     responses:
  *       200:
- *         description: Cập nhật thành công
+ *         description: Profile updated successfully
  *         content:
  *           application/json:
  *             schema:
@@ -180,13 +242,7 @@
  *                   type: boolean
  *                   example: true
  *                 user:
- *                   $ref: '#/components/schemas/User'
- *       401:
- *         description: Unauthorized
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *                   $ref: '#/components/schemas/UserProfile'
  */
 
 /**
@@ -194,8 +250,7 @@
  * /api/auth/change-password:
  *   put:
  *     tags: [Authentication]
- *     summary: Đổi mật khẩu
- *     description: Thay đổi mật khẩu của user hiện tại
+ *     summary: Change current user password
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -213,28 +268,13 @@
  *                 example: "oldpassword123"
  *               newPassword:
  *                 type: string
- *                 minLength: 6
- *                 example: "newpassword456"
+ *                 minLength: 8
+ *                 example: "NewPassword123!"
  *     responses:
  *       200:
- *         description: Đổi mật khẩu thành công
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Password đã được thay đổi thành công"
+ *         description: Password changed successfully
  *       401:
- *         description: Password hiện tại không đúng
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *         description: Current password is incorrect
  */
 
 /**
@@ -242,8 +282,8 @@
  * /api/auth/users:
  *   get:
  *     tags: [Users]
- *     summary: Lấy danh sách users (Admin only)
- *     description: Trả về danh sách users với pagination (chỉ admin)
+ *     summary: List users (Admin only)
+ *     description: Returns paginated users with legacy and canonical department fields.
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -252,27 +292,28 @@
  *         schema:
  *           type: integer
  *           default: 1
- *         description: Trang hiện tại
  *       - in: query
  *         name: limit
  *         schema:
  *           type: integer
  *           default: 10
- *         description: Số lượng items per page
  *       - in: query
  *         name: role
  *         schema:
  *           type: string
  *           enum: [admin, analyst, viewer]
- *         description: Filter theo role
  *       - in: query
  *         name: isActive
  *         schema:
  *           type: boolean
- *         description: Filter theo trạng thái active
+ *       - in: query
+ *         name: departmentId
+ *         schema:
+ *           type: string
+ *         description: Filter users by canonical department id
  *     responses:
  *       200:
- *         description: Danh sách users
+ *         description: Paginated user list
  *         content:
  *           application/json:
  *             schema:
@@ -283,38 +324,24 @@
  *                   example: true
  *                 count:
  *                   type: integer
- *                   example: 5
+ *                   example: 3
  *                 pagination:
  *                   type: object
  *                   properties:
  *                     page:
  *                       type: integer
- *                       example: 1
  *                     limit:
  *                       type: integer
- *                       example: 10
  *                     total:
  *                       type: integer
- *                       example: 25
  *                     pages:
  *                       type: integer
- *                       example: 3
  *                 data:
  *                   type: array
  *                   items:
- *                     $ref: '#/components/schemas/User'
- *       401:
- *         description: Unauthorized
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *                     $ref: '#/components/schemas/UserProfile'
  *       403:
- *         description: Forbidden - Admin role required
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *         description: Admin role required
  */
 
 /**
@@ -322,8 +349,8 @@
  * /api/auth/users/{id}:
  *   put:
  *     tags: [Users]
- *     summary: Cập nhật user (Admin only)
- *     description: Cập nhật thông tin user (chỉ admin)
+ *     summary: Update a user (Admin only)
+ *     description: Updates role, status, legacy department, or canonical department assignment.
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -349,10 +376,16 @@
  *                 example: true
  *               department:
  *                 type: string
+ *                 nullable: true
  *                 example: "IT Security"
+ *               departmentId:
+ *                 type: string
+ *                 nullable: true
+ *                 description: Set to a department id to assign, or null/empty to clear the canonical department link.
+ *                 example: "69df3b3fd7d1b53419bd0764"
  *     responses:
  *       200:
- *         description: Cập nhật user thành công
+ *         description: User updated successfully
  *         content:
  *           application/json:
  *             schema:
@@ -362,17 +395,11 @@
  *                   type: boolean
  *                   example: true
  *                 data:
- *                   $ref: '#/components/schemas/User'
+ *                   $ref: '#/components/schemas/UserProfile'
+ *       400:
+ *         description: Invalid department id or invalid payload
  *       404:
- *         description: User không tồn tại
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *         description: User not found
  *       403:
- *         description: Forbidden - Admin role required
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
+ *         description: Admin role required
  */
