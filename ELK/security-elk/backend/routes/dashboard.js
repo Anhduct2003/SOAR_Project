@@ -5,6 +5,28 @@ const Incident = require('../models/Incident');
 const Alert = require('../models/Alert');
 const mongoose = require('mongoose');
 
+const DASHBOARD_TIMEZONE = process.env.DASHBOARD_TIMEZONE || 'Asia/Bangkok';
+
+const formatHourBucket = (date) => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: DASHBOARD_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    hour12: false,
+    hourCycle: 'h23'
+  }).formatToParts(date);
+
+  const get = (type) => parts.find((part) => part.type === type)?.value;
+  const hour = get('hour') === '24' ? '00' : get('hour');
+
+  return {
+    key: `${get('year')}-${get('month')}-${get('day')} ${hour}:00`,
+    name: `${hour}:00`
+  };
+};
+
 /**
  * @swagger
  * /api/dashboard/stats:
@@ -89,6 +111,10 @@ router.get('/stats', protect, async (req, res) => {
             medium: { $sum: { $cond: [{ $eq: ['$severity', 'medium'] }, 1, 0] } },
             high: { $sum: { $cond: [{ $eq: ['$severity', 'high'] }, 1, 0] } },
             critical: { $sum: { $cond: [{ $eq: ['$severity', 'critical'] }, 1, 0] } },
+            activeLow: { $sum: { $cond: [{ $and: [{ $eq: ['$severity', 'low'] }, { $not: { $in: ['$status', ['resolved', 'closed']] } }] }, 1, 0] } },
+            activeMedium: { $sum: { $cond: [{ $and: [{ $eq: ['$severity', 'medium'] }, { $not: { $in: ['$status', ['resolved', 'closed']] } }] }, 1, 0] } },
+            activeHigh: { $sum: { $cond: [{ $and: [{ $eq: ['$severity', 'high'] }, { $not: { $in: ['$status', ['resolved', 'closed']] } }] }, 1, 0] } },
+            activeCritical: { $sum: { $cond: [{ $and: [{ $eq: ['$severity', 'critical'] }, { $not: { $in: ['$status', ['resolved', 'closed']] } }] }, 1, 0] } },
             last24Hours: { $sum: { $cond: [{ $gte: ['$createdAt', last24Hours] }, 1, 0] } },
             today: { $sum: { $cond: [{ $gte: ['$createdAt', today] }, 1, 0] } },
           }
@@ -103,7 +129,8 @@ router.get('/stats', protect, async (req, res) => {
     const overview = statsResult[0] || {
       total: 0, open: 0, investigating: 0, contained: 0,
       resolved: 0, closed: 0, low: 0, medium: 0, high: 0,
-      critical: 0, last24Hours: 0, today: 0,
+      critical: 0, activeLow: 0, activeMedium: 0, activeHigh: 0,
+      activeCritical: 0, last24Hours: 0, today: 0,
     };
 
     // Category stats (separate aggregation since it needs different grouping)
@@ -136,6 +163,12 @@ router.get('/stats', protect, async (req, res) => {
         medium: overview.medium,
         high: overview.high,
         critical: overview.critical,
+      },
+      activeSeverity: {
+        low: overview.activeLow,
+        medium: overview.activeMedium,
+        high: overview.activeHigh,
+        critical: overview.activeCritical,
       },
       categories: categoryStats.reduce((acc, item) => {
         acc[item._id] = item.count;
@@ -288,7 +321,11 @@ router.get('/trend', protect, async (req, res) => {
       {
         $group: {
           _id: {
-            $dateToString: { format: "%Y-%m-%d %H:00", date: "$createdAt" }
+            $dateToString: {
+              format: "%Y-%m-%d %H:00",
+              date: "$createdAt",
+              timezone: DASHBOARD_TIMEZONE
+            }
           },
           count: { $sum: 1 }
         }
@@ -300,12 +337,11 @@ router.get('/trend', protect, async (req, res) => {
     const result = [];
     for (let i = 23; i >= 0; i--) {
       const d = new Date(Date.now() - i * 60 * 60 * 1000);
-      const hourStr = d.toISOString().substring(0, 13) + ":00";
-      const displayHour = `${d.getHours().toString().padStart(2, '0')}:00`;
+      const hourBucket = formatHourBucket(d);
       
-      const found = trends.find(t => t._id.startsWith(d.toISOString().substring(0, 13)));
+      const found = trends.find(t => t._id === hourBucket.key);
       result.push({
-        name: displayHour,
+        name: hourBucket.name,
         val: found ? found.count : 0
       });
     }

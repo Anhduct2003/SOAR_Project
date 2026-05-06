@@ -3,6 +3,7 @@ import axios from 'axios';
 import {
   ArrowDownTrayIcon,
   BellSlashIcon,
+  CheckCircleIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   EllipsisVerticalIcon,
@@ -10,6 +11,7 @@ import {
   FunnelIcon,
   MagnifyingGlassIcon,
   NoSymbolIcon,
+  XMarkIcon,
   UserCircleIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
@@ -33,6 +35,7 @@ const Incidents = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [selected, setSelected] = useState({});
   const [activeMenu, setActiveMenu] = useState(null);
+  const [detailIncident, setDetailIncident] = useState(null);
 
   const fetchIncidents = useCallback(async () => {
     if (!token) {
@@ -111,6 +114,28 @@ const Incidents = () => {
     }
 
     setActiveMenu(null);
+  };
+
+  const handleViewDetails = (incident) => {
+    setDetailIncident(incident);
+    setActiveMenu(null);
+  };
+
+  const handleUpdateStatus = async (incident, status) => {
+    try {
+      const res = await axios.put(
+        `/api/incidents/${incident.id}`,
+        { status },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const updatedIncident = { id: res.data.data._id || res.data.data.id, ...res.data.data };
+      setIncidents((prev) => prev.map((item) => (item.id === incident.id ? updatedIncident : item)));
+      setDetailIncident((prev) => (prev?.id === incident.id ? updatedIncident : prev));
+      setActiveMenu(null);
+    } catch (err) {
+      window.alert(localizeApiMessage(err?.response?.data?.message || err?.message, 'common.errors.updateFailed'));
+    }
   };
 
   const handleExportCSV = () => {
@@ -283,7 +308,11 @@ const Incidents = () => {
                           overflow: 'hidden'
                         }}
                       >
-                        <button className="menu-item" style={{ width: '100%', textAlign: 'left', padding: '0.6rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                        <button
+                          onClick={() => handleViewDetails(incident)}
+                          className="menu-item"
+                          style={{ width: '100%', textAlign: 'left', padding: '0.6rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-primary)' }}
+                        >
                           <EyeIcon style={{ width: 16 }} /> {t('common.actions.viewDetails')}
                         </button>
                         <button
@@ -295,6 +324,13 @@ const Incidents = () => {
                         </button>
                         <button className="menu-item" style={{ width: '100%', textAlign: 'left', padding: '0.6rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-primary)' }}>
                           <BellSlashIcon style={{ width: 16 }} /> {t('common.actions.muteAlert')}
+                        </button>
+                        <button
+                          onClick={() => handleUpdateStatus(incident, 'resolved')}
+                          className="menu-item"
+                          style={{ width: '100%', textAlign: 'left', padding: '0.6rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--color-low)' }}
+                        >
+                          <CheckCircleIcon style={{ width: 16 }} /> Mark resolved
                         </button>
                         <button className="menu-item" style={{ width: '100%', textAlign: 'left', padding: '0.6rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', border: 'none', background: 'none', cursor: 'pointer', borderTop: '1px solid var(--border-color)', color: 'var(--accent-color)' }}>
                           <UserCircleIcon style={{ width: 16 }} /> {t('common.actions.assignToMe')}
@@ -335,6 +371,130 @@ const Incidents = () => {
           </div>
         </div>
       </div>
+
+      {detailIncident && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Incident details"
+          onClick={() => setDetailIncident(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1000,
+            backgroundColor: 'rgba(15, 23, 42, 0.55)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem'
+          }}
+        >
+          <div
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              width: 'min(760px, 100%)',
+              maxHeight: '85vh',
+              overflow: 'auto',
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '8px',
+              boxShadow: '0 24px 60px rgba(15, 23, 42, 0.35)'
+            }}
+          >
+            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', backgroundColor: 'rgba(15, 23, 42, 0.02)' }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700, marginBottom: '0.45rem' }}>
+                  Incident details
+                </div>
+                <h2 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text-primary)', lineHeight: 1.3 }}>
+                  {detailIncident.title}
+                </h2>
+              </div>
+              <button
+                onClick={() => setDetailIncident(null)}
+                className="btn"
+                aria-label="Close incident details"
+                style={{ padding: '0.45rem', color: 'var(--text-secondary)' }}
+              >
+                <XMarkIcon style={{ width: 20 }} />
+              </button>
+            </div>
+
+            <div style={{ padding: '1.5rem', display: 'grid', gap: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+                {detailIncident.status !== 'resolved' && (
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => handleUpdateStatus(detailIncident, 'resolved')}
+                    style={{ backgroundColor: 'var(--color-low)', border: 'none' }}
+                  >
+                    <CheckCircleIcon style={{ width: 18 }} />
+                    Mark resolved
+                  </button>
+                )}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+                <div style={{ padding: '0.9rem 1rem', border: '1px solid var(--border-color)', borderRadius: '8px', backgroundColor: 'var(--bg-primary)' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.45rem', fontWeight: 600 }}>Severity</div>
+                  <span className={`badge badge-${detailIncident.severity}`}>{t(`common.severity.${detailIncident.severity}`)}</span>
+                </div>
+                <div style={{ padding: '0.9rem 1rem', border: '1px solid var(--border-color)', borderRadius: '8px', backgroundColor: 'var(--bg-primary)' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.45rem', fontWeight: 600 }}>Status</div>
+                  <div style={{ fontWeight: 600 }}>{t(`common.incidentStatus.${detailIncident.status}`)}</div>
+                </div>
+                <div style={{ padding: '0.9rem 1rem', border: '1px solid var(--border-color)', borderRadius: '8px', backgroundColor: 'var(--bg-primary)' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.45rem', fontWeight: 600 }}>Category</div>
+                  <div style={{ fontWeight: 600 }}>{detailIncident.category || t('common.messages.notAvailable')}</div>
+                </div>
+                <div style={{ padding: '0.9rem 1rem', border: '1px solid var(--border-color)', borderRadius: '8px', backgroundColor: 'var(--bg-primary)' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.45rem', fontWeight: 600 }}>Source</div>
+                  <div style={{ fontWeight: 600 }}>{detailIncident.source || t('common.messages.notAvailable')}</div>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0.75rem' }}>
+                <div style={{ padding: '0.9rem 1rem', border: '1px solid var(--border-color)', borderRadius: '8px', backgroundColor: 'var(--bg-primary)' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.45rem', fontWeight: 600 }}>Detected at</div>
+                  <div style={{ color: 'var(--text-primary)' }}>{formatDateTime(detailIncident.detectedAt || detailIncident.createdAt)}</div>
+                </div>
+                <div style={{ padding: '0.9rem 1rem', border: '1px solid var(--border-color)', borderRadius: '8px', backgroundColor: 'var(--bg-primary)' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.45rem', fontWeight: 600 }}>Created at</div>
+                  <div style={{ color: 'var(--text-primary)' }}>{formatDateTime(detailIncident.createdAt || detailIncident.detectedAt)}</div>
+                </div>
+              </div>
+
+              <div style={{ padding: '0.9rem 1rem', border: '1px solid var(--border-color)', borderRadius: '8px', backgroundColor: 'var(--bg-primary)' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.55rem', fontWeight: 600 }}>IP addresses</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  {(detailIncident.ipAddresses?.length ? detailIncident.ipAddresses : [t('common.messages.notAvailable')]).map((ip) => (
+                    <span
+                      key={ip}
+                      style={{
+                        padding: '0.35rem 0.6rem',
+                        borderRadius: '999px',
+                        backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                        color: 'var(--accent-color)',
+                        fontSize: '0.8125rem',
+                        fontWeight: 600
+                      }}
+                    >
+                      {ip}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ padding: '0.9rem 1rem', border: '1px solid var(--border-color)', borderRadius: '8px', backgroundColor: 'var(--bg-primary)' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.55rem', fontWeight: 600 }}>Description</div>
+                <div style={{ lineHeight: 1.6, color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+                  {detailIncident.description || t('common.messages.notAvailable')}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

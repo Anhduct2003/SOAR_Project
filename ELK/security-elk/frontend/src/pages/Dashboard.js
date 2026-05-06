@@ -66,41 +66,46 @@ function timeAgo(dateStr) {
 
 const StatCard = ({ title, value, icon: Icon, color, delta, onClick }) => {
   const isUp = delta > 0;
-  const isDown = delta < 0;
   return (
     <div
       className="card cursor-pointer group"
       onClick={onClick}
       style={{
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
-        gap: '1.25rem',
+        justifyContent: 'space-between',
+        gap: '1rem',
+        minHeight: 260,
+        padding: '1.4rem',
         position: 'relative',
         overflow: 'hidden',
         transition: 'all 0.25s ease'
       }}
     >
-      <div
-        style={{
-          backgroundColor: `${color}18`,
-          color,
-          padding: '0.875rem',
-          borderRadius: '14px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0,
-          transition: 'transform 0.25s ease'
-        }}
-        className="group-hover:scale-110"
-      >
-        <Icon style={{ width: 26, height: 26 }} />
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', fontWeight: 500, marginBottom: '0.2rem', whiteSpace: 'nowrap' }}>
-          {title}
-        </p>
+      <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', fontWeight: 700, margin: 0, minHeight: 20, textAlign: 'center', whiteSpace: 'nowrap' }}>
+        {title}
+      </p>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1.25rem', width: '100%' }}>
+        <div
+          style={{
+            backgroundColor: `${color}18`,
+            color,
+            padding: '0.875rem',
+            borderRadius: '14px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            transition: 'transform 0.25s ease'
+          }}
+          className="group-hover:scale-110"
+        >
+          <Icon style={{ width: 26, height: 26 }} />
+        </div>
         <h3 style={{ fontSize: '2rem', fontWeight: 800, margin: 0, lineHeight: 1 }}>{value}</h3>
+      </div>
+      <div style={{ minHeight: 18, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {delta !== undefined && delta !== 0 && (
           <span style={{
             fontSize: '0.72rem',
@@ -128,11 +133,34 @@ const StatCard = ({ title, value, icon: Icon, color, delta, onClick }) => {
   );
 };
 
+const DashboardCard = ({ title, children, onClick }) => (
+  <div
+    className="card cursor-pointer"
+    onClick={onClick}
+    style={{
+      minHeight: 260,
+      padding: '1.4rem',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'space-between'
+    }}
+  >
+    <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', fontWeight: 700, textAlign: 'center', margin: 0, minHeight: 20, whiteSpace: 'nowrap' }}>
+      {title}
+    </p>
+    <div style={{ flex: 1, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      {children}
+    </div>
+    <div style={{ minHeight: 18 }} />
+  </div>
+);
+
 const SecurityGauge = ({ score }) => {
   const color = score > 80 ? 'var(--color-low)' : score > 50 ? 'var(--color-medium)' : 'var(--color-critical)';
   const data = [{ name: 'Score', value: score, fill: color }];
   return (
-    <div style={{ position: 'relative', height: 190, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ position: 'relative', width: '100%', height: 190, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <ResponsiveContainer width="100%" height="100%">
         <RadialBarChart innerRadius="60%" outerRadius="100%" data={data} startAngle={180} endAngle={0}>
           <RadialBar minAngle={10} background dataKey="value" cornerRadius={8} />
@@ -574,6 +602,10 @@ const Dashboard = () => {
   const [selectedIp, setSelectedIp] = useState(null);
   const [showHealthModal, setShowHealthModal] = useState(false);
   const [lastSync, setLastSync] = useState(null);
+  const [seenCriticalCount, setSeenCriticalCount] = useState(() => {
+    const stored = Number(localStorage.getItem('dashboardSeenCriticalCount'));
+    return Number.isFinite(stored) ? stored : 0;
+  });
 
   const fetchRecent = useCallback(async () => {
     try {
@@ -640,9 +672,10 @@ const Dashboard = () => {
 
   const securityScore = useMemo(() => {
     if (!stats) return 100;
-    const penalty = (stats.severity.critical || 0) * 15
-      + (stats.severity.high || 0) * 8
-      + (stats.severity.medium || 0) * 3;
+    const riskSeverity = stats.activeSeverity || stats.severity;
+    const penalty = (riskSeverity.critical || 0) * 15
+      + (riskSeverity.high || 0) * 8
+      + (riskSeverity.medium || 0) * 3;
     return Math.max(0, 100 - penalty);
   }, [stats]);
 
@@ -653,6 +686,15 @@ const Dashboard = () => {
     } catch {
       toast.error('Không thể chặn IP này.');
     }
+  };
+
+  const criticalCount = stats?.severity?.critical || 0;
+  const shouldShowCriticalBanner = criticalCount > 0 && criticalCount > seenCriticalCount;
+
+  const handleCriticalBannerClick = () => {
+    localStorage.setItem('dashboardSeenCriticalCount', String(criticalCount));
+    setSeenCriticalCount(criticalCount);
+    navigate('/incidents?severity=critical');
   };
 
   if (loading) {
@@ -672,10 +714,10 @@ const Dashboard = () => {
     <div className="dashboard-container">
 
       {/* ── Critical Alert Banner ── */}
-      {stats.severity.critical > 0 && (
+      {shouldShowCriticalBanner && (
         <CriticalBanner
-          count={stats.severity.critical}
-          onClick={() => navigate('/incidents?severity=critical')}
+          count={criticalCount}
+          onClick={handleCriticalBannerClick}
         />
       )}
 
@@ -688,16 +730,12 @@ const Dashboard = () => {
           color="var(--accent-color)"
           onClick={() => navigate('/incidents')}
         />
-        <div
-          className="card cursor-pointer"
+        <DashboardCard
+          title={t('dashboard.securityPosture')}
           onClick={() => setShowHealthModal(true)}
-          style={{ padding: '1rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}
         >
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', fontWeight: 500, textAlign: 'center', marginBottom: '0.25rem' }}>
-            {t('dashboard.securityPosture')}
-          </p>
           <SecurityGauge score={securityScore} />
-        </div>
+        </DashboardCard>
         <StatCard
           title={t('dashboard.activeInvestigations')}
           value={stats.overview.investigatingIncidents}
@@ -904,9 +942,9 @@ const Dashboard = () => {
                 </p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {[
-                    { label: t('common.severity.critical'), count: stats.severity.critical, penalty: 15, color: '#ef4444' },
-                    { label: t('common.severity.high'), count: stats.severity.high, penalty: 8, color: '#f97316' },
-                    { label: t('common.severity.medium'), count: stats.severity.medium, penalty: 3, color: '#f59e0b' }
+                    { label: t('common.severity.critical'), count: (stats.activeSeverity || stats.severity).critical, penalty: 15, color: '#ef4444' },
+                    { label: t('common.severity.high'), count: (stats.activeSeverity || stats.severity).high, penalty: 8, color: '#f97316' },
+                    { label: t('common.severity.medium'), count: (stats.activeSeverity || stats.severity).medium, penalty: 3, color: '#f59e0b' }
                   ].map((row) => (
                     <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8125rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
