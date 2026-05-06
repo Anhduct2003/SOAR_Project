@@ -159,7 +159,11 @@ const en = {
     attackSummary: 'Attack Summary',
     totalAttempts: 'Total attempts detected',
     firstSeen: 'First seen',
-    securityHealthReport: 'Security Health Report'
+    securityHealthReport: 'Security Health Report',
+    recentIncidents: 'Recent Security Events',
+    lastSync: 'Last sync',
+    systemClean: 'System clean. No incidents detected.',
+    view: 'View'
   },
   alerts: {
     highCritical: 'High + Critical',

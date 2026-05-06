@@ -159,7 +159,11 @@ const vi = {
     attackSummary: 'Tóm tắt hành vi',
     totalAttempts: 'Tổng số lần thử',
     firstSeen: 'Lần đầu xuất hiện',
-    securityHealthReport: 'Báo cáo sức khỏe hệ thống'
+    securityHealthReport: 'Báo cáo sức khỏe hệ thống',
+    recentIncidents: 'Sự cố vừa phát sinh',
+    lastSync: 'Cập nhật lúc',
+    systemClean: 'Hệ thống sạch. Không có sự cố nào.',
+    view: 'Xem'
   },
   alerts: {
     highCritical: 'Cao + Nghiêm trọng',
